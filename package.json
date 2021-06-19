@@ -1,0 +1,22 @@
+{
+  "name": "logroid",
+  "version": "1.0.0",
+  "description": "Android Logcat display tool",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaiuszzang/Logroid.git"
+  },
+  "author": "m.c.shin",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gaiuszzang/Logroid/issues"
+  },
+  "homepage": "https://github.com/gaiuszzang/Logroid#readme",
+  "devDependencies": {
+    "electron": "^13.1.2"
+  }
+}

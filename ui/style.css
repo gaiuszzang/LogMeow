@@ -1,0 +1,372 @@
+/**
+ *   MAKE ELECTRON APP FEEL MORE NATIVE
+ *
+ *   * Prevent dragging all HTML elements, specially:
+ *      - images
+ *      - links (anchors)
+ *
+ *   * Prevent text selection
+ */
+
+:root {
+    --logtab-date-width: 180px;
+    --logtab-pid-width: 60px;
+    --logtab-tid-width: 60px;
+    --logtab-level-width: 40px;
+    --logtab-tag-width: 180px;
+    --logtab-log-whitespace: pre;
+    --footer-height: 30px;
+}
+
+*, *::after, *::before {
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-app-region: no-drag;
+    cursor: default;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
+}
+body {
+    margin: 0px;
+    height: 100%;
+    display: flex;
+    flex-flow: column;
+}
+
+textarea {
+    -webkit-user-select: auto;
+    -webkit-user-drag: auto;
+}
+
+input {
+    background-color: #fff;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+    font-size: 12px;
+    height: 34px;
+    padding: 4px 6px 4px 6px;
+    margin: 0px 4px 0px 4px;
+    cursor: text;
+}
+
+select {
+  /* styling */
+  background-color: #f0f0f0;
+  border: #ffff;
+  border-radius: 5px;
+  display: inline-block;
+  padding: 0.5em 2.5em 0.5em 1em;
+  height: 34px;
+
+  /* reset */
+  margin: 0;      
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  /* arrow */
+  background-image:
+    linear-gradient(45deg, transparent 50%, gray 50%),
+    linear-gradient(135deg, gray 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) calc(1em + 2px),
+    calc(100% - 15px) calc(1em + 2px),
+    calc(100% - 2.5em) 0.5em;
+  background-size:
+    4px 4px,
+    5px 5px,
+    0px 0px;
+  background-repeat: no-repeat;
+}
+
+select:hover {
+    background-color: #e0e0e0;
+}
+
+
+button {
+    height: 34px;
+    font-size: 12px;
+    font-weight: bold;
+    outline: none;
+    border-radius: 5px;
+    border: 0px;
+    padding-left: 10px;
+    padding-right: 10px;
+    background-color: #f0f0f0;
+}
+button:hover {
+    background-color: #e0e0e0;
+}
+button:active {
+    background-color: #d8d8d8;
+}
+
+headerline {
+    display: flex;
+    margin: 8px 8px 0px 8px;
+    height: 34px;
+}
+
+headertext {
+    font-size: 14px;
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+logbox {
+    width: 100%;
+    display: block;
+    flex-grow: 1;
+    overflow: auto;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+    font-family: "Monaco", "Consolas", monospace;
+    font-size: 12px;
+    margin-top: 8px;
+    margin-bottom: var(--footer-height);
+    border-top: 1px solid #e0e0e0;
+}
+
+logheaderline {
+    width: 100%;
+    font-size: 14px;
+    display: block;
+    display: inline-flex;
+}
+
+logline {
+    width: 100%;
+    display: block;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+    display: inline-flex;
+}
+
+logline:hover {
+    background: #eaeaea;
+}
+
+logtab {
+    padding-left: 2px;
+    padding-right: 2px;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+    overflow: overlay;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+logtab::-webkit-scrollbar {
+    display: none;
+}
+
+logtabbar {
+    width: 1px;
+    cursor: col-resize;
+    background-color: #d0d0d0;
+}
+
+logtabspace {
+    width: 1px;
+}
+
+footer {
+    position: fixed; 
+    left: 0px;
+    bottom: 0px;
+    height: var(--footer-height);
+    width: 100%;
+    padding: 3px 8px 3px 8px;
+    border-top: 1px solid #e0e0e0;
+    display: inline-flex;
+}
+
+footertext {
+    font-size: 12px;
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+splitbar {
+    width:  1px;
+    height: 14px;
+    margin: auto 2px auto 2px;
+    background-color: #e0e0e0;
+}
+
+.logtab_title {
+    text-align: center;
+    background: #f0f0f0;
+    padding: 4px;
+    border-top: 1px solid #d0d0d0;
+    border-bottom: 1px solid #d0d0d0;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-app-region: no-drag;
+    cursor: default;
+    overflow: unset;
+}
+
+.logtab_date {
+    width: var(--logtab-date-width);
+}
+.logtab_pid {
+    width: var(--logtab-pid-width);
+    text-align: center;
+}
+.logtab_tid {
+    width: var(--logtab-tid-width);
+    text-align: center;
+}
+.logtab_level {
+    width: var(--logtab-level-width);
+    text-align: center;
+}
+.logtab_tag {
+    width: var(--logtab-tag-width);
+}
+.logtab_log {
+    width: 0px;
+    flex-grow: 1;
+    white-space: var(--logtab-log-whitespace);
+}
+
+.logtab_U {
+    color: #808080;
+}
+.logtab_V {
+    color: #000000;
+}
+.logtab_D {
+    color: #0000F0;
+}
+.logtab_I {
+    color: #00A000;
+}
+.logtab_W {
+    color: #A00000;
+}
+.logtab_E {
+    color: #FF0000;
+}
+.logtab_F {
+    color: #FF00FF;
+}
+
+.c_header_image_button {
+    width: 34px;
+    height: 34px;
+    margin-left: 4px;
+    margin-right: 4px;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 4px;
+    border-radius: 5px;
+}
+
+.c_header_image_button:hover {
+    background-color: #f0f0f0;
+}
+.c_header_image_button:active {
+    background-color: #e0e0e0;
+}
+
+.c_header_image_button_clicked {
+    width: 24px;
+    height: 24px;
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 2px;
+    border-radius: 3px;
+    background-color: #f0f0f0;
+}
+
+.c_header_image_button_clicked:hover {
+    background-color: #e0e0e0;
+}
+.c_header_image_button_clicked:active {
+    background-color: #d0d0d0;
+}
+
+
+.c_footer_image_button {
+    width: 24px;
+    height: 24px;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+.c_footer_image_button:hover {
+    background-color: #f0f0f0;
+}
+.c_footer_image_button:active {
+    background-color: #e0e0e0;
+}
+
+.c_footer_image_button_clicked {
+    width: 24px;
+    height: 24px;
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 2px;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+}
+
+.c_footer_image_button_clicked:hover {
+    background-color: #e0e0e0;
+}
+.c_footer_image_button_clicked:active {
+    background-color: #d0d0d0;
+}
+
+.c_footer_split_bar {
+    width:  1px;
+    height: 20px;
+    margin-top: auto;
+    margin-bottom: auto;
+    background-color: #e0e0e0;
+}
+
+.c_footer_rightside {
+    display: inline-flex;
+    flex-grow: 1;
+    height: 24px;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.c_footer_detail {
+    flex-grow: 1;
+    width: 0px;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+}

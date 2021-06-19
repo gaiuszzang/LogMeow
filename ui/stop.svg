@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#cf0000">
+    <g data-name="Layer 2">
+        <g data-name="minus-square">
+            <rect width="24" height="24" opacity="0"/>
+            <path d="M14 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zm-3" transform="scale(0.7, 0.7) translate(5, 5)"/>
+        </g>
+    </g>
+</svg>

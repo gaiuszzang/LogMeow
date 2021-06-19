@@ -1,22 +1,32 @@
 {
-  "name": "logroid",
+  "name": "logmeow",
   "version": "1.0.0",
-  "description": "Android Logcat display tool",
+  "description": "Android Logcat Monitoring Tool",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "build:win": "electron-packager . LogMeow --platform=win32 --arch=x64 --asar --icon=./logmeow.ico --prune=true --out=release_win",
+    "build:osx": "electron-packager . LogMeow --platform=darwin --arch=x64 --asar --icon=./logmeow.icns --prune=true --out=release_osx",
+    "build:mas": "electron-packager . LogMeow --platform=darwin --arch=arm64 --asar --icon=./logmeow.icns --prune=true --out=release_mas"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gaiuszzang/Logroid.git"
+    "url": "git+https://github.com/gaiuszzang/LogMeow.git"
   },
   "author": "m.c.shin",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/gaiuszzang/Logroid/issues"
+    "url": "https://github.com/gaiuszzang/LogMeow/issues"
   },
-  "homepage": "https://github.com/gaiuszzang/Logroid#readme",
+  "homepage": "https://github.com/gaiuszzang/LogMeow#readme",
   "devDependencies": {
-    "electron": "^13.1.2"
+    "asar": "^3.1.0",
+    "electron": "^15.0.0",
+    "electron-packager": "^15.4.0"
+  },
+  "dependencies": {
+    "adbkit": "^2.11.1",
+    "child_process": "^1.0.2",
+    "moment": "^2.29.1"
   }
 }

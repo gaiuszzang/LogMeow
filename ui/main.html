@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>LogMeow</title>
+        <link rel="stylesheet" type="text/css" href="style.css"/>
+        <script>
+            let setting = require('../settingsModule.js')
+            let adb = require('../adbModule.js')
+            let log = require('../logModule.js')
+            let ui = require('./uiModule.js')
+            //let tabDrag = require('./uiTabDragModule.js')
+
+            async function updateDeviceList() {
+                ui.updateDeviceList(await adb.getDevices())
+            }
+
+            function addLog(logEntry) {
+                let addResult = log.addLog(logEntry)
+                ui.addLogLine(logEntry)
+                ui.scrollToBottom()
+                if (addResult.isExceed) {
+                    ui.removeTopLogLine()
+                }
+                if (!addResult.isFilterSatisfied) {
+                    ui.setVisibilityLogLine(logEntry.logIndex, false)
+                }
+            }
+
+            function clickLoggingButton() {
+                let state = ui.toggleLoggingState()
+                if (state === true) {
+                    let deviceList = document.querySelector('#deviceList')
+                    let serial = deviceList.options[deviceList.selectedIndex].value
+                    console.log('Start Log : ' + serial)
+                    adb.startLogcat(serial, addLog)
+                } else {
+                    console.log('Stop Log')
+                    adb.stopLogcat()
+                }
+            }
+
+            function onCreate() {
+                setting.init()
+                //tabDrag.initTabDrag(document)
+                log.init(setting.getSetting())
+                ui.init(setting.getSetting())
+                adb.trackDevices(updateDeviceList)
+
+                log.setLogBufferStatusCallback(ui.updateLogBufferStatus)
+
+                document.querySelector("#pidFilter").addEventListener('input', function() {
+                    log.updatePidFilter(this.value, ui.setVisibilityLogLine)
+                });
+
+                document.querySelector("#tagFilter").addEventListener('input', function() {
+                    log.updateTagFilter(this.value, ui.setVisibilityLogLine)
+                });
+
+                document.querySelector("#messageFilter").addEventListener('input', function() {
+                    log.updateMessageFilter(this.value, ui.setVisibilityLogLine)
+                });
+
+
+                //TODO
+                /*
+                document.addEventListener('copy', (event) => {
+                    console.log('copy action initiated')
+                });*/
+            }
+
+            function clearAll() {
+                log.removeAllLog()
+                ui.removeAllLogLine()
+            }
+
+            function updateLevelFilter() {
+                let levelFilter = document.querySelector('#levelFilter')
+                log.updateLevelFilter(levelFilter.options[levelFilter.selectedIndex].value, ui.setVisibilityLogLine)
+            }
+        </script>
+    </head>
+    <body onload="onCreate()">
+        <!--header 1 line -->
+        <headerline>
+            <headertext>Device List</headertext>
+            <img id="syncButton" class="c_header_image_button" src="sync-outline.svg" alt="Sync Devices" onclick="updateDeviceList()">
+            <select id="deviceList" style="width: 300px;">
+            </select>
+            <img id="loggingButton" class="c_header_image_button" src="play.svg" alt="Play" onclick="clickLoggingButton()">
+            <img id="logClearButton" class="c_header_image_button" src="clear.svg" alt="Wrap Text" onclick="clearAll()">
+            <!-- TODO : clear image -->
+        </headerline>
+
+        <!--header 2 line : Filter Tab -->
+        <headerline>
+            <headertext>Level Filter</headertext>
+            <select id="levelFilter" style="width: 150px;" onchange="updateLevelFilter()">
+            </select>
+            <headertext>Pid Filter</headertext>
+            <input id="pidFilter" style="width: 100px;"/>
+            <headertext>Tag Filter</headertext>
+            <input id="tagFilter" style="width: 150px;"/>
+            <headertext>Message Filter</headertext>
+            <input id="messageFilter" style="flex-grow: 1;"/>
+        </headerline>
+
+        <!-- header 3 line -->
+        <!--<headerline>
+            <button type="button" style="width:100px;" onclick="clearAll()">Remove All</button>
+        </headerline>-->
+
+        <!-- log tab -->
+        <!--
+        <logheaderline>
+            <logtab class="logtab_date logtab_title" id="tabDate">Date</logtab>
+            <logtabbar id="barDate"></logtabbar>
+            <logtab class="logtab_pid logtab_title" id="tabPID">PID</logtab>
+            <logtabbar id="barPID"></logtabbar>
+            <logtab class="logtab_tid logtab_title" id="tabTID">TID</logtab>
+            <logtabbar id="barTID"></logtabbar>
+            <logtab class="logtab_level logtab_title" id="tabLevel">Lv</logtab>
+            <logtabbar id="barLevel"></logtabbar>
+            <logtab class="logtab_tag logtab_title" id="tabTag">Tag</logtab>
+            <logtabbar id="barTag"></logtabbar>
+            <logtab class="logtab_log logtab_title">Log</logtab>
+        </logheaderline>-->
+
+        <!--log list -->
+        <logbox id="loglist"></logbox>
+
+        <!--Footer Menu -->
+        <footer>
+            
+            <img id="logScrollToBottom" class="c_footer_image_button" src="scroll-bottom.svg" alt="Scroll To Bottom" onclick="ui.toggleScrollToBottom()">
+            <img id="logWrapTextButton" class="c_footer_image_button" src="wrap.svg" alt="Wrap Text" onclick="ui.toggleLogWrapText()">
+            <splitbar></splitbar>
+            
+            <div class="c_footer_rightside">
+                <footertext id="footerStatus" style="width: 200px"></footertext>
+                <splitbar></splitbar>
+                <footertext id="footerDetail" class="c_footer_detail"></footertext>
+            </div>
+        </footer>
+    </body>
+</html>

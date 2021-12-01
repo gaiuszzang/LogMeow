@@ -8,7 +8,7 @@
 * Execute : ```npm start```   
 * Build : ```npm run build:win```
 
-**Execute & Build for Mac M1 (Intel)**   
+**Execute & Build for Mac (Intel)**   
 * Execute : ```npm start```   
 * Build : ```npm run build:osx```
 

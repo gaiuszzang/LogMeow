@@ -1,8 +1,8 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, dialog, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, powerMonitor, nativeTheme } = require('electron')
 
 
-const appVersion = "1.0.0";
-const isDebug = false;
+const appVersion = "1.0.1"
+const isDebug = true
 
 let mainWin;
 
@@ -21,19 +21,56 @@ function createWindow() {
         resizable: true,
         show: true,
     });
-    mainWin.loadFile('ui/main.html');
-    mainWin.setMenu(null);
+    mainWin.loadFile('ui/main.html')
+    mainWin.setMenu(null)
     // Open the DevTools.
     if (isDebug) {
-        mainWin.webContents.openDevTools();
+        mainWin.webContents.openDevTools()
     }
     mainWin.once('show', () => {
-        console.log("win is shown(once)");
+        console.log("win is shown(once)")
+    })
+    ipcMain.handle('isDarkMode', (event, isDarkMode) => {
+        useDarkMode = isDarkMode
+        if (isDarkMode) {
+            nativeTheme.themeSource = 'dark'
+        } else {
+            nativeTheme.themeSource = 'light'
+        }
+    })
+    ipcMain.handle('openScheme', (event, setting, serial) => {
+        openSchemeWindow(setting, serial)
+    })
+}
+
+function openSchemeWindow(setting, serial) {
+    let schemeWin = new BrowserWindow({
+        parent: mainWin,
+        modal: false,
+        width: 1600,
+        height: 1300,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            enableRemoteModule: true
+        },
+        frame: true,
+        resizable: false,
+        fullscreen: false,
+        show: true,
+    })
+    schemeWin.loadFile('ui/scheme.html')
+
+    if (isDebug) {
+        schemeWin.webContents.openDevTools()
+    }
+    schemeWin.once('show', () => {
+        schemeWin.webContents.send('init', setting, serial)
     })
 }
 
 async function onCreate() {
-    createWindow();
+    createWindow()
 }
 
 function onDestroy() {
@@ -45,6 +82,6 @@ async function userExit() {
 }
 
 //App LifeCycle
-app.on('ready', onCreate);
-app.on('will-quit', onDestroy);
-powerMonitor.on('shutdown', userExit);
+app.on('ready', onCreate)
+app.on('will-quit', onDestroy)
+powerMonitor.on('shutdown', userExit)

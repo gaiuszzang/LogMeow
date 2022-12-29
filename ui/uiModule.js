@@ -21,7 +21,11 @@ let scrollToBottomTimer = null
 //Element for use (lazy init)
 let logList
 
-exports.init = function(setting) {
+// lazy init
+let setting
+
+exports.init = function(loadedSetting) {
+    setting = loadedSetting
     scrollToBottomTimerMilles = setting.scrollToBottomTimerMilles
 
     logList = document.querySelector('#loglist')
@@ -29,7 +33,7 @@ exports.init = function(setting) {
     updateLoggingButton()
     updateLogWrapTextButton()
     updateScrollToBottomButton()
-
+    setStyle(setting.useDarkTheme)
     //init defaultLogLine
     /*
     defaultLogLine.appendChild(createLogTab('logtab_date'))
@@ -116,6 +120,10 @@ exports.setVisibilityLogLine = function(logIndex, visible) {
     document.querySelector("#log_" + logIndex).style.display = visible ? '' : 'none'
 }
 
+exports.openScheme = function(serial) {
+    ipcRenderer.invoke('openScheme', setting, serial)
+}
+
 function updateLoggingButton() {
     let button = document.querySelector('#loggingButton')
     if (loggingState === true) {
@@ -195,4 +203,17 @@ function createOption(value, text) {
 
 function updateProperty(propertyName, value) {
     document.documentElement.style.setProperty(propertyName, value);
+}
+
+function setStyle(isDarkTheme) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    if (isDarkTheme) {
+        link.href = 'style-darktheme.css';
+    } else {
+        link.href = 'style.css';
+    }
+    document.head.appendChild(link);
+
+    ipcRenderer.invoke('isDarkMode', isDarkTheme)
 }

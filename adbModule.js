@@ -1,6 +1,6 @@
 const { remote, ipcRenderer } = require('electron')
-let adb = require('adbkit')
-let client = adb.createClient()
+const adb = require('adbkit');
+let client = adb.createClient();
 let activeLogcat = null
 let logIndex = 0
 
@@ -18,6 +18,20 @@ exports.startLogcat = function(serial, callback) {
 
 exports.stopLogcat = function() {
     return stopAdbLogcat()
+}
+
+exports.executeScheme = function(serial, scheme) {
+    //adb shell am start -a android.intent.action.VIEW -d $1
+    const shellCommand = 'am start -a android.intent.action.VIEW -d ' + scheme
+    console.log(shellCommand)
+    return new Promise(function(resolve, reject) {
+        client.shell(serial, shellCommand)
+            .then(adb.util.readAll)
+            .then(function(output) {
+                console.log('%s', output.toString().trim())
+                resolve(output.toString().trim())
+            })
+    })
 }
 
 function getAdbDevices() {

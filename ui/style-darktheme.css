@@ -37,32 +37,36 @@ body {
     height: 100%;
     display: flex;
     flex-flow: column;
+    background-color: #3C3E40;
 }
 
 textarea {
     -webkit-user-select: auto;
     -webkit-user-drag: auto;
+    color: #d0d0d0;
 }
 
 input {
-    background-color: #fff;
+    background-color: #2B2B2B;
     border-radius: 5px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #202020;
     font-size: 12px;
     height: 34px;
     padding: 4px 6px 4px 6px;
     margin: 0px 4px 0px 4px;
     cursor: text;
+    color: #d0d0d0;
 }
 
 select {
   /* styling */
-  background-color: #f0f0f0;
-  border: #ffff;
+  background-color: #2B2B2B;
+  border: 1px solid #202020;
   border-radius: 5px;
   display: inline-block;
   padding: 0.5em 2.5em 0.5em 1em;
   height: 34px;
+  color: #d0d0d0;
 
   /* reset */
   margin: 0;      
@@ -88,7 +92,7 @@ select {
 }
 
 select:hover {
-    background-color: #e0e0e0;
+    background-color: #242424;
 }
 
 
@@ -101,13 +105,14 @@ button {
     border: 0px;
     padding-left: 10px;
     padding-right: 10px;
-    background-color: #f0f0f0;
+    background-color: #2B2B2B;
+    color: #d0d0d0;
 }
 button:hover {
-    background-color: #e0e0e0;
+    background-color: #242424;
 }
 button:active {
-    background-color: #d8d8d8;
+    background-color: #202020;
 }
 
 headerline {
@@ -122,6 +127,7 @@ headertext {
     padding-right: 4px;
     margin-top: auto;
     margin-bottom: auto;
+    color: #d0d0d0;
 }
 
 logbox {
@@ -137,7 +143,20 @@ logbox {
     font-size: 12px;
     margin-top: 8px;
     margin-bottom: var(--footer-height);
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #202020;
+    background-color: #2B2B2B;
+    color: #d0d0d0;
+}
+
+logbox::-webkit-scrollbar {
+    background: #202020;
+}
+
+logbox::-webkit-scrollbar-thumb {
+    background-color: #3C3E40;
+    border-radius: 10px;
+    background-clip: padding-box;
+    border: 3px solid transparent;
 }
 
 logheaderline {
@@ -158,7 +177,7 @@ logline {
 }
 
 logline:hover {
-    background: #eaeaea;
+    background: #202020;
 }
 
 logtab {
@@ -194,7 +213,7 @@ footer {
     height: var(--footer-height);
     width: 100%;
     padding: 3px 8px 3px 8px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #202020;
     display: inline-flex;
 }
 
@@ -204,20 +223,21 @@ footertext {
     padding-right: 4px;
     margin-top: auto;
     margin-bottom: auto;
+    color: #d0d0d0;
 }
 
 splitbar_large {
     width:  1px;
     height: 18px;
     margin: auto 2px auto 2px;
-    background-color: #e0e0e0;
+    background-color: #202020;
 }
 
 splitbar_small {
     width:  1px;
     height: 14px;
     margin: auto 2px auto 2px;
-    background-color: #e0e0e0;
+    background-color: #202020;
 }
 
 .logtab_title {
@@ -261,22 +281,22 @@ splitbar_small {
     color: #808080;
 }
 .logtab_V {
-    color: #000000;
+    color: #d0d0d0;
 }
 .logtab_D {
-    color: #0000F0;
+    color: #40A0FF;
 }
 .logtab_I {
-    color: #00A000;
+    color: #50D040;
 }
 .logtab_W {
-    color: #A00000;
+    color: #B86060;
 }
 .logtab_E {
-    color: #FF0000;
+    color: #E05050;
 }
 .logtab_F {
-    color: #FF00FF;
+    color: #C060F0;
 }
 
 .c_header_image_button {
@@ -291,14 +311,14 @@ splitbar_small {
 }
 
 .c_header_image_button svg {
-    fill: #000000;
+    fill: #d0d0d0;
 }
 
 .c_header_image_button:hover {
-    background-color: #f0f0f0;
+    background-color: #303030;
 }
 .c_header_image_button:active {
-    background-color: #e0e0e0;
+    background-color: #2B2B2B;
 }
 
 .c_header_image_button_clicked {
@@ -310,18 +330,18 @@ splitbar_small {
     margin-bottom: auto;
     padding: 2px;
     border-radius: 3px;
-    background-color: #f0f0f0;
+    background-color: #2B2B2B;
 }
 
 .c_header_image_button_clicked svg {
-    fill: #000000;
+    fill: #d0d0d0;
 }
 
 .c_header_image_button_clicked:hover {
-    background-color: #e0e0e0;
+    background-color: #282828;
 }
 .c_header_image_button_clicked:active {
-    background-color: #d0d0d0;
+    background-color: #242424;
 }
 
 
@@ -335,14 +355,14 @@ splitbar_small {
 }
 
 .c_footer_image_button svg {
-    fill: #000000;
+    fill: #d0d0d0;
 }
 
 .c_footer_image_button:hover {
-    background-color: #f0f0f0;
+    background-color: #303030;
 }
 .c_footer_image_button:active {
-    background-color: #e0e0e0;
+    background-color: #2B2B2B;
 }
 
 .c_footer_image_button_clicked {
@@ -352,26 +372,27 @@ splitbar_small {
     margin-bottom: auto;
     padding: 2px;
     border-radius: 5px;
-    background-color: #f0f0f0;
+    background-color: #2B2B2B;
 }
 
 .c_footer_image_button_clicked svg {
-    fill: #000000;
+    fill: #d0d0d0;
 }
 
 .c_footer_image_button_clicked:hover {
-    background-color: #e0e0e0;
+    background-color: #282828;
 }
 .c_footer_image_button_clicked:active {
-    background-color: #d0d0d0;
+    background-color: #242424;
 }
+
 
 .c_footer_split_bar {
     width:  1px;
     height: 20px;
     margin-top: auto;
     margin-bottom: auto;
-    background-color: #e0e0e0;
+    background-color: #2B2B2B;
 }
 
 .c_footer_rightside {

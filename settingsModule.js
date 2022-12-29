@@ -1,4 +1,4 @@
-const { remote, ipcRenderer } = require('electron')
+const { remote, ipcRenderer, shell } = require('electron')
 let fs = require('fs');
 let path = require('path');
 
@@ -8,10 +8,11 @@ const settingDir = (process.platform == "darwin") ?
 const settingFile = path.join(settingDir, "settings.json")
 
 let defaultSetting = {
-    version: 1,
+    version: 2,
     logBufferSize: 10000,
     filterSearchYieldCount: 1000,
-    scrollToBottomTimerMilles: 10
+    scrollToBottomTimerMilles: 10,
+    useDarkTheme: false
 }
 
 let setting = null
@@ -33,16 +34,18 @@ exports.updateSetting = function(newSetting) {
     saveConfig()
 }
 
+exports.openSettingDirectory = function() {
+    shell.openPath(settingDir)
+}
 
 function migrationSetting() {
     let isUpdated = false
-    /*
+    
     if (setting.version == 1) {
         setting.version = 2
-        //TODO Update to 2
-        isUpdate = true
+        setting.useDarkTheme = false
+        isUpdated = true
     }
-    */
 
     if (isUpdated == true) {
         saveConfig()

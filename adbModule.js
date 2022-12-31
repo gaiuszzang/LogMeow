@@ -22,7 +22,7 @@ exports.stopLogcat = function() {
 
 exports.executeScheme = function(serial, scheme) {
     //adb shell am start -a android.intent.action.VIEW -d $1
-    const shellCommand = 'am start -a android.intent.action.VIEW -d ' + scheme
+    const shellCommand = 'am start -a android.intent.action.VIEW -d "' + scheme + '"'
     console.log(shellCommand)
     return new Promise(function(resolve, reject) {
         client.shell(serial, shellCommand)

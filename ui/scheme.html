@@ -13,13 +13,22 @@
             async function executeScheme() {
                 //TODO
                 const schemeText = document.querySelector("#scheme").value
+                if (schemeText.trim() == '') {
+                    alert("Please input the scheme text.")
+                    return
+                }
                 let result = await schemeModule.executeScheme(schemeText)
+                schemeModule.addSchemeToHistory(schemeText)
                 alert(result)
+            }
+
+            function removeSchemeToHistory(scheme) {
+                schemeModule.removeSchemeToHistory(scheme)
             }
         </script>
     </head>
     <body onload="onCreate()">
-        <!--header 1 line -->
+
         <headerline>
             <headertext>Scheme</headertext>
             <input id="scheme" style="flex-grow: 1;" onkeyup="if(window.event.keyCode==13) { executeScheme() }"/>
@@ -27,8 +36,9 @@
                 <button id="execute" onclick="executeScheme()">Execute</button>
             </div>
         </headerline>
-        <haederline>
-            <headertext>History (TBD)</headertext>
-        </haederline>
+
+        <!--historylist --> 
+        <headertext style="padding-top: 20px;">History</headertext>
+        <historylist id="historylist"></historylist>
     </body>
 </html>

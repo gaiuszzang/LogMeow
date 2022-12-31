@@ -38,7 +38,7 @@ exports.openSettingDirectory = function() {
     shell.openPath(settingDir)
 }
 
-function migrationSetting() {
+function migrateSetting() {
     let isUpdated = false
     
     if (setting.version == 1) {
@@ -58,7 +58,7 @@ function loadConfig() {
         saveConfig()
     } else {
         setting = JSON.parse(fs.readFileSync(settingFile, 'utf8'));
-        migrationSetting()
+        migrateSetting()
     }
 }
 

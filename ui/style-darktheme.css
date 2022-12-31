@@ -240,6 +240,49 @@ splitbar_small {
     background-color: #202020;
 }
 
+historylist {
+    width: 100%;
+    display: block;
+    flex-grow: 1;
+    overflow: auto;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+    font-family: "Monaco", "Consolas", monospace;
+    font-size: 12px;
+    margin-top: 8px;
+    border-top: 1px solid #202020;
+    background-color: #2B2B2B;
+    color: #d0d0d0;
+}
+
+historylist::-webkit-scrollbar {
+    background: #202020;
+}
+
+historylist::-webkit-scrollbar-thumb {
+    background-color: #3C3E40;
+    border-radius: 10px;
+    background-clip: padding-box;
+    border: 3px solid transparent;
+}
+
+
+historyitem {
+    width: 100%;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+    display: inline-flex;
+    padding: 5px;
+}
+
+historyitem:hover {
+    background: #202020;
+}
+
 .logtab_title {
     text-align: center;
     background: #f0f0f0;

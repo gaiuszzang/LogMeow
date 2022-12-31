@@ -1,8 +1,8 @@
 const { app, BrowserWindow, ipcMain, Menu, powerMonitor, nativeTheme } = require('electron')
 
 
-const appVersion = "1.0.1"
-const isDebug = true
+const appVersion = "1.0.2"
+const isDebug = false
 
 let mainWin;
 
@@ -47,15 +47,17 @@ function openSchemeWindow(setting, serial) {
     let schemeWin = new BrowserWindow({
         parent: mainWin,
         modal: false,
-        width: 1600,
-        height: 1300,
+        width: 600,
+        height: 300,
+        minWidth: 500,
+        minHeight: 260,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
             enableRemoteModule: true
         },
         frame: true,
-        resizable: false,
+        resizable: true,
         fullscreen: false,
         show: true,
     })

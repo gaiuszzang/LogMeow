@@ -1,4 +1,5 @@
 const { remote, ipcRenderer } = require('electron')
+
 let fs = require('fs');
 let path = require('path');
 const adb = require('../adbModule.js')
@@ -60,9 +61,7 @@ function initHistoryList() {
 
 function createSchemeHistoryItem(scheme) {
     let historyItemText = document.createElement('div')
-    historyItemText.style.flexGrow = 1
-    historyItemText.style.marginTop = "auto"
-    historyItemText.style.marginBottom = "auto"
+    historyItemText.className = 'historyitemtext'
     historyItemText.innerHTML = scheme
 
     let historyItemButtonGroup = document.createElement('div')

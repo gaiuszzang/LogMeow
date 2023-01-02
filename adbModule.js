@@ -1,4 +1,5 @@
 const { remote, ipcRenderer } = require('electron')
+const { exec, execSync, spawn } = require('child_process')
 const adb = require('adbkit');
 let client = adb.createClient();
 let activeLogcat = null
@@ -23,15 +24,55 @@ exports.stopLogcat = function() {
 exports.executeScheme = function(serial, scheme) {
     //adb shell am start -a android.intent.action.VIEW -d $1
     const shellCommand = 'am start -a android.intent.action.VIEW -d "' + scheme + '"'
-    console.log(shellCommand)
     return new Promise(function(resolve, reject) {
         client.shell(serial, shellCommand)
             .then(adb.util.readAll)
             .then(function(output) {
-                console.log('%s', output.toString().trim())
                 resolve(output.toString().trim())
             })
     })
+}
+
+exports.takePicture = async function(serial) {
+    return await client.screencap(serial)
+}
+
+exports.scrcpy = async function(serial) {
+    return new Promise(function(resolve, reject) {
+        const command = 'scrcpy -s ' + serial + ' --legacy-paste'
+        exec(command, (error, stdout, stderr) => {
+            if (error != null) {
+                resolve(false)
+            } else {
+                resolve(true)
+            }
+        })
+    })
+}
+
+let videoFileName = '/sdcard/logmeow.mp4'
+let videoRecordProcess = null
+
+exports.startVideoRecord = function(serial, outputPath, callback) {
+    videoRecordProcess = spawn('adb', ['-s', serial, 'shell', 'screenrecord', videoFileName])
+    videoRecordProcess.on('close', (code) => {
+        //delay 1000ms for saving file internally
+        setTimeout(() => {
+            const pullCommand = 'adb -s ' + serial + ' pull ' + videoFileName + ' ' + outputPath
+            const removeCommand = 'rm ' + videoFileName
+            execSync(pullCommand)
+            client.shell(serial, removeCommand)
+            callback(outputPath)
+            videoRecordProcess = null
+        }, 1000)
+        
+    })
+}
+
+exports.stopVideoRecord = function() {
+    if (videoRecordProcess != null) {
+        videoRecordProcess.kill()
+    }
 }
 
 function getAdbDevices() {
@@ -44,7 +85,6 @@ function getAdbDevices() {
 }
 
 function trackAdbDevices(callback) {
-    console.log("trackAdbDevices")
     client.trackDevices().then(function(tracker) {
         tracker.on('add', function(device) {
             callback()
@@ -62,7 +102,6 @@ function trackAdbDevices(callback) {
 function startAdbLogcat(serial, callback) {
     client.openLogcat(serial, {clear: true}).then(function(logcat) {
         activeLogcat = logcat
-        console.log('begin')
         logcat.on('entry', function(entry) {
             entry.logIndex = logIndex++
             entry.message = convertSystemSourceToHtml(entry.message)

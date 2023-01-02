@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, powerMonitor, nativeTheme } = require('electron')
 
 
-const appVersion = "1.0.2"
+const appVersion = "1.0.3"
 const isDebug = false
 
 let mainWin;
@@ -21,7 +21,7 @@ function createWindow() {
         resizable: true,
         show: true,
     });
-    mainWin.loadFile('ui/main.html')
+    mainWin.loadFile('ui/home.html')
     mainWin.setMenu(null)
     // Open the DevTools.
     if (isDebug) {
@@ -40,6 +40,9 @@ function createWindow() {
     })
     ipcMain.handle('openScheme', (event, setting, serial) => {
         openSchemeWindow(setting, serial)
+    })
+    ipcMain.handle('showDialog', (event, message) => {
+        showDialog(message)
     })
 }
 

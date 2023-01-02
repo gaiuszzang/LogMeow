@@ -4,102 +4,18 @@
         <meta charset="UTF-8">
         <title>LogMeow</title>
         <script>
-            let setting = require('../settingsModule.js')
-            let adb = require('../adbModule.js')
-            let log = require('../logModule.js')
-            let ui = require('./uiModule.js')
-            //let tabDrag = require('./uiTabDragModule.js')
-
-            async function updateDeviceList() {
-                ui.updateDeviceList(await adb.getDevices())
-            }
-
-            function addLog(logEntry) {
-                let addResult = log.addLog(logEntry)
-                ui.addLogLine(logEntry)
-                ui.scrollToBottom()
-                if (addResult.isExceed) {
-                    ui.removeTopLogLine()
-                }
-                if (!addResult.isFilterSatisfied) {
-                    ui.setVisibilityLogLine(logEntry.logIndex, false)
-                }
-            }
-
-            function clickLoggingButton() {
-                let state = ui.toggleLoggingState()
-                if (state === true) {
-                    let deviceList = document.querySelector('#deviceList')
-                    let serial = deviceList.options[deviceList.selectedIndex].value
-                    console.log('Start Log : ' + serial)
-                    adb.startLogcat(serial, addLog)
-                } else {
-                    console.log('Stop Log')
-                    adb.stopLogcat()
-                }
-            }
-
-            function openSetting() {
-                setting.openSettingDirectory()
-            }
-
-            function onCreate() {
-                setting.init()
-                //tabDrag.initTabDrag(document)
-                log.init(setting.getSetting())
-                ui.init(setting.getSetting())
-                adb.trackDevices(updateDeviceList)
-
-                log.setLogBufferStatusCallback(ui.updateLogBufferStatus)
-
-                document.querySelector("#pidFilter").addEventListener('input', function() {
-                    log.updatePidFilter(this.value, ui.setVisibilityLogLine)
-                });
-
-                document.querySelector("#tagFilter").addEventListener('input', function() {
-                    log.updateTagFilter(this.value, ui.setVisibilityLogLine)
-                });
-
-                document.querySelector("#messageFilter").addEventListener('input', function() {
-                    log.updateMessageFilter(this.value, ui.setVisibilityLogLine)
-                });
-
-
-                //TODO
-                /*
-                document.addEventListener('copy', (event) => {
-                    console.log('copy action initiated')
-                });*/
-            }
-
-            function clearAll() {
-                log.removeAllLog()
-                ui.removeAllLogLine()
-            }
-
-            function openScheme() {
-                let deviceList = document.querySelector('#deviceList')
-                let serial = deviceList.options[deviceList.selectedIndex].value
-
-                //TODO : serial이 없을 땐 경고 팝업을 대신 띄워야 한다.
-                ui.openScheme(serial)
-            }
-
-            function updateLevelFilter() {
-                let levelFilter = document.querySelector('#levelFilter')
-                log.updateLevelFilter(levelFilter.options[levelFilter.selectedIndex].value, ui.setVisibilityLogLine)
-            }
+            let home = require('./home.js')
         </script>
     </head>
-    <body onload="onCreate()">
+    <body onload="home.onCreate()">
         <!--header 1 line -->
         <headerline>
             <headertext>Device List</headertext>
-            <img id="syncButton" class="c_header_image_button" src="sync-outline.svg" alt="Sync Devices" onclick="updateDeviceList()">
+            <img id="syncButton" class="c_header_image_button" src="sync-outline.svg" alt="Sync Devices" onclick="home.updateDeviceList()">
             <select id="deviceList" style="width: 300px;">
             </select>
-            <img id="loggingButton" class="c_header_image_button" src="play.svg" alt="Play" onclick="clickLoggingButton()">
-            <div id="logClearButton" class="c_header_image_button" alt="Wrap Text" onclick="clearAll()">
+            <img id="loggingButton" class="c_header_image_button" src="play.svg" alt="Play" title="Log Play/Stop" onclick="home.doLogging()">
+            <div id="logClearButton" class="c_header_image_button" alt="Clear" title="Clear All Logs" onclick="home.clearAll()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <g data-name="Layer 2">
                         <g data-name="trash">
@@ -110,7 +26,29 @@
                 </svg>
             </div>
             <splitbar_large></splitbar_large>
-            <div id="schemeButton" class="c_header_image_button" alt="Scheme" onclick="openScheme()">
+            <div id="pictureButton" class="c_header_image_button" alt="Picture" title="Take Picture" onclick="home.takePicture()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <g data-name="Layer 2">
+                        <g data-name="camera">
+                            <rect width="24" height="24" opacity="0"/>
+                            <path d="M19 7h-3V5.5A2.5 2.5 0 0 0 13.5 3h-3A2.5 2.5 0 0 0 8 5.5V7H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3zm-9-1.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V7h-4zM20 18a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1z" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                            <path d="M12 10.5a3.5 3.5 0 1 0 3.5 3.5 3.5 3.5 0 0 0-3.5-3.5zm0 5a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5z" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            <div id="videoButton" class="c_header_image_button" alt="Video" title="Record Video" onclick="home.recordVideo()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <g data-name="Layer 2">
+                        <g data-name="video">
+                            <rect width="24" height="24" opacity="0"/>
+                            <path d="M21 7.15a1.7 1.7 0 0 0-1.85.3l-2.15 2V8a3 3 0 0 0-3-3H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-1.45l2.16 2a1.74 1.74 0 0 0 1.16.45 1.68 1.68 0 0 0 .69-.15 1.6 1.6 0 0 0 1-1.48V8.63A1.6 1.6 0 0 0 21 7.15zM15 16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1zm5-1.4L17.19 12 20 9.4z" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            <splitbar_large></splitbar_large>
+            <div id="schemeButton" class="c_header_image_button" alt="Scheme" title="Scheme" onclick="home.openScheme()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <g data-name="Layer 2">
                         <g data-name="compass">
@@ -121,11 +59,23 @@
                     </g>
                 </svg>
             </div>
+            <div id="scrcpyButton" class="c_header_image_button" alt="Scrcpy" title="Run Scrcpy" onclick="home.openScrcpy()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <g data-name="Layer 2">
+                        <g data-name="smartphone">
+                            <rect width="24" height="24" transform="rotate(90 12 12)" opacity="0"/>
+                            <path d="M17 2H7a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3zm1 17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1z" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                            <circle cx="12" cy="16.5" r="1.5" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                            <path d="M14.5 6h-5a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2z" transform="scale(0.7, 0.7) translate(5, 5)"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
 
             <!-- header 1 right side -->
             <div style="flex-grow: 1;">
                 <div style="float: right">
-                    <div id="settingButton" class="c_header_image_button" alt="Setting" onclick="openSetting()">
+                    <div id="settingButton" class="c_header_image_button" alt="Setting" title="Setting" onclick="home.openSetting()">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                             <g data-name="Layer 2">
                                 <g data-name="settings">
@@ -143,7 +93,7 @@
         <!--header 2 line : Filter Tab -->
         <headerline>
             <headertext>Level Filter</headertext>
-            <select id="levelFilter" style="width: 150px;" onchange="updateLevelFilter()">
+            <select id="levelFilter" style="width: 150px;" onchange="home.updateLevelFilter()">
             </select>
             <headertext>Pid Filter</headertext>
             <input id="pidFilter" style="width: 100px;"/>
@@ -153,33 +103,12 @@
             <input id="messageFilter" style="flex-grow: 1;"/>
         </headerline>
 
-        <!-- header 3 line -->
-        <!--<headerline>
-            <button type="button" style="width:100px;" onclick="clearAll()">Remove All</button>
-        </headerline>-->
-
-        <!-- log tab -->
-        <!--
-        <logheaderline>
-            <logtab class="logtab_date logtab_title" id="tabDate">Date</logtab>
-            <logtabbar id="barDate"></logtabbar>
-            <logtab class="logtab_pid logtab_title" id="tabPID">PID</logtab>
-            <logtabbar id="barPID"></logtabbar>
-            <logtab class="logtab_tid logtab_title" id="tabTID">TID</logtab>
-            <logtabbar id="barTID"></logtabbar>
-            <logtab class="logtab_level logtab_title" id="tabLevel">Lv</logtab>
-            <logtabbar id="barLevel"></logtabbar>
-            <logtab class="logtab_tag logtab_title" id="tabTag">Tag</logtab>
-            <logtabbar id="barTag"></logtabbar>
-            <logtab class="logtab_log logtab_title">Log</logtab>
-        </logheaderline>-->
-
         <!--log list -->
         <logbox id="loglist"></logbox>
 
         <!--Footer Menu -->
         <footer>
-            <div id="logScrollToBottom" class="c_footer_image_button" alt="Scroll To Bottom" onclick="ui.toggleScrollToBottom()">
+            <div id="logScrollToBottom" class="c_footer_image_button" alt="Scroll To Bottom" onclick="home.toggleScrollToBottom()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <g data-name="Layer 2">
                         <g data-name="download">
@@ -191,7 +120,7 @@
                     </g>
                 </svg>
             </div>
-            <div id="logWrapTextButton" class="c_footer_image_button" alt="Wrap Text" onclick="ui.toggleLogWrapText()">
+            <div id="logWrapTextButton" class="c_footer_image_button" alt="Wrap Text" onclick="home.toggleLogWrapText()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path d="M0 0h24v24H0V0z" fill="none"/>
                     <path d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3 3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z" transform="scale(0.7, 0.7) translate(5, 5)"/>

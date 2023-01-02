@@ -237,9 +237,6 @@ historylist {
 
 historyitem {
     width: 100%;
-    -webkit-user-select: text;
-    -webkit-user-drag: unset;
-    -webkit-app-region: unset;
     cursor: auto;
     display: inline-flex;
     padding: 5px;
@@ -247,6 +244,16 @@ historyitem {
 
 historyitem:hover {
     background: #eaeaea;
+}
+
+.historyitemtext {
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    flex-grow: 1;
+    margin-top: auto;
+    margin-bottom: auto;
+    cursor: auto;
 }
 
 .logtab_title {

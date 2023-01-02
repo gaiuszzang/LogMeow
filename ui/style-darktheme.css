@@ -283,6 +283,16 @@ historyitem:hover {
     background: #202020;
 }
 
+.historyitemtext {
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    flex-grow: 1;
+    margin-top: auto;
+    margin-bottom: auto;
+    cursor: auto;
+}
+
 .logtab_title {
     text-align: center;
     background: #f0f0f0;

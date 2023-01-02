@@ -56,7 +56,6 @@ exports.updatePidFilter = function(pid, callback) {
     if (isNaN(pidFilter)) {
         pidFilter = 0
     }
-    console.log(pidFilter)
     runFilter(callback)
 }
 

@@ -4,14 +4,9 @@
         <meta charset="UTF-8">
         <title>Scheme</title>
         <script>
-            let schemeModule = require('./schemeModule.js')
-
-            function onCreate() {
-                //TODO Check
-            }
+            let schemeModule = require('./scheme.js')
 
             async function executeScheme() {
-                //TODO
                 const schemeText = document.querySelector("#scheme").value
                 if (schemeText.trim() == '') {
                     alert("Please input the scheme text.")
@@ -27,8 +22,7 @@
             }
         </script>
     </head>
-    <body onload="onCreate()">
-
+    <body>
         <headerline>
             <headertext>Scheme</headertext>
             <input id="scheme" style="flex-grow: 1;" onkeyup="if(window.event.keyCode==13) { executeScheme() }"/>

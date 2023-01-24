@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, powerMonitor, nativeTheme } = require('electron')
 
 
-const appVersion = "1.0.3"
+const appVersion = "1.0.4"
 const isDebug = false
 
 let mainWin;

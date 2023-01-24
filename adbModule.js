@@ -1,9 +1,12 @@
-const { remote, ipcRenderer } = require('electron')
+const { process, remote, ipcRenderer } = require('electron')
 const { exec, execSync, spawn } = require('child_process')
 const adb = require('adbkit');
 let client = adb.createClient();
 let activeLogcat = null
 let logIndex = 0
+
+const fixPath = require('fix-path')
+fixPath()
 
 exports.getDevices = async function() {
     return await getAdbDevices()
@@ -42,6 +45,7 @@ exports.scrcpy = async function(serial) {
         const command = 'scrcpy -s ' + serial + ' --legacy-paste'
         exec(command, (error, stdout, stderr) => {
             if (error != null) {
+                console.log(error)
                 resolve(false)
             } else {
                 resolve(true)

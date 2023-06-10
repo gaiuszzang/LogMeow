@@ -26,6 +26,7 @@ let logLevelTable = ['U', 'U', 'V', 'D', 'I', 'W', 'E', 'F', 'U']
 let defaultOpt = document.createElement('option')
 let defaultLogTab = document.createElement('logtab')
 let defaultLogLine = document.createElement('logline')
+let defaultLogLineSelected = document.createElement('loglineSelected')
 let defaultLogTabSpace = document.createElement('logtabspace')
 
 let loggingState = false
@@ -36,6 +37,10 @@ let videoRecordingState = false
 let logScrollToBottom = true
 let scrollToBottomTimerMilles = 25
 let scrollToBottomTimer = null
+
+//Selected Item
+let selectedLogItemId = ""
+let selectedLogItemBackgroundColor = ""
 
 //Element for use (lazy init)
 let logList
@@ -159,6 +164,10 @@ exports.updateDeviceList = async function() {
 exports.toggleScrollToBottom = function() {
     logScrollToBottom = !logScrollToBottom
     updateScrollToBottomButton()
+}
+
+exports.scrollToSelectedItem = function() {
+    scrollToSelectedItem()
 }
 
 exports.toggleLogWrapText = function() {
@@ -297,13 +306,28 @@ function createLogLine(logEntry) {
                                                      level + ' ' + logEntry.tag + ':  ' + logEntry.message
 
     logLine.onclick = function() {
-        updateFooterDetailMessage(logEntry.message)
+        updateFooterDetailMessage(logLine.id, logEntry.message)
     }
     return logLine
 }
 
-function updateFooterDetailMessage(message) {
+function updateFooterDetailMessage(id, message) {
+    let prevSelectedLogItem = document.getElementById(selectedLogItemId)
+    selectedLogItemId = id
+    let newSelectedLogItem = document.getElementById(selectedLogItemId)
     document.querySelector('#footerDetail').innerHTML = message
+
+    if (prevSelectedLogItem != null) {
+        prevSelectedLogItem.style.backgroundColor = ""
+    }
+    if (newSelectedLogItem != null) {
+        newSelectedLogItem.style.backgroundColor = selectedLogItemBackgroundColor
+    }
+}
+
+function scrollToSelectedItem() {
+    let selectedLogLine = document.getElementById(selectedLogItemId)
+    selectedLogLine.scrollIntoView()
 }
 
 function createOption(value, text) {
@@ -322,8 +346,11 @@ function setStyle(isDarkTheme) {
     link.rel = 'stylesheet';
     if (isDarkTheme) {
         link.href = 'style-darktheme.css';
+        selectedLogItemBackgroundColor = "#141414"
+
     } else {
         link.href = 'style.css';
+        selectedLogItemBackgroundColor = "#00000020"
     }
     document.head.appendChild(link);
 

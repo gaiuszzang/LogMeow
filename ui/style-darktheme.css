@@ -168,6 +168,8 @@ logheaderline {
 
 logline {
     width: 100%;
+    padding-top: 2px;
+    padding-bottom: 2px;
     display: block;
     -webkit-user-select: text;
     -webkit-user-drag: unset;

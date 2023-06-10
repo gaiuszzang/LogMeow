@@ -8,11 +8,12 @@ const settingDir = (process.platform == "darwin") ?
 const settingFile = path.join(settingDir, "settings.json")
 
 let defaultSetting = {
-    version: 2,
+    version: 3,
     logBufferSize: 10000,
     filterSearchYieldCount: 1000,
     scrollToBottomTimerMilles: 10,
-    useDarkTheme: false
+    useDarkTheme: false,
+    useFilterIgnoreCase: true
 }
 
 let setting = null
@@ -44,6 +45,12 @@ function migrateSetting() {
     if (setting.version == 1) {
         setting.version = 2
         setting.useDarkTheme = false
+        isUpdated = true
+    }
+
+    if (setting.version == 2) {
+        setting.version = 3
+        setting.useFilterIgnoreCase = true
         isUpdated = true
     }
 

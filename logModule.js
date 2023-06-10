@@ -7,6 +7,7 @@ let logBufferStatusCallback = null
 
 //Log Filter
 let filterSearchYieldCount = 1000
+let useFilterIgnoreCase = true
 let levelFilter = 0
 let pidFilter = 0
 let tagFilter = ""
@@ -20,6 +21,7 @@ exports.init = function(setting) {
     logBuffer.length = 0 //clear buffer
     logBufferSize = setting.logBufferSize
     filterSearchYieldCount = setting.filterSearchYieldCount
+    useFilterIgnoreCase = setting.useFilterIgnoreCase
 }
 
 exports.setLogBufferStatusCallback = function(callback) {
@@ -77,11 +79,27 @@ function isFilterSatisfied(logEntry) {
     if (pidFilter > 0 && logEntry.pid != pidFilter && logEntry.tid != pidFilter) {
         return false
     }
-    if (tagFilter != "" && !logEntry.tag.includes(tagFilter)) {
-        return false
+    if (tagFilter != "") {
+        if (useFilterIgnoreCase == true) {
+            if (!logEntry.tag.toLowerCase().includes(tagFilter.toLowerCase())) {
+                return false
+            }
+        } else {
+            if (!logEntry.tag.includes(tagFilter)) {
+                return false
+            }
+        }
     }
-    if (messageFilter != "" && !logEntry.message.includes(messageFilter)) {
-        return false
+    if (messageFilter != "") {
+        if (useFilterIgnoreCase == true) {
+            if (!logEntry.message.toLowerCase().includes(messageFilter.toLowerCase())) {
+                return false
+            }
+        } else {
+            if (!logEntry.message.includes(messageFilter)) {
+                return false
+            }
+        }
     }
     return true
 }

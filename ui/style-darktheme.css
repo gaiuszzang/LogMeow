@@ -293,6 +293,7 @@ historyitem:hover {
     margin-top: auto;
     margin-bottom: auto;
     cursor: auto;
+    overflow-wrap: anywhere;
 }
 
 .logtab_title {

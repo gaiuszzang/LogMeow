@@ -62,8 +62,7 @@ function initHistoryList() {
 function createSchemeHistoryItem(scheme) {
     let historyItemText = document.createElement('div')
     historyItemText.className = 'historyitemtext'
-    historyItemText.innerHTML = scheme
-
+    historyItemText.innerHTML = scheme.replaceAll('&', '&amp;')
     let historyItemButtonGroup = document.createElement('div')
     historyItemButtonGroup.style.float = "right"
     historyItemButtonGroup.style.visibility = 'hidden'

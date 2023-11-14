@@ -1,6 +1,6 @@
 {
   "name": "logmeow",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Android Logcat Monitoring Tool",
   "main": "main.js",
   "scripts": {

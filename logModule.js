@@ -117,7 +117,7 @@ function runFilter(callback) {
 async function asyncRunFilter(job, callback) {
     for (let i = 0; i < logBuffer.length && job.done != true; i++) {
         let logEntry = logBuffer[i]
-        callback(logEntry.logIndex, isFilterSatisfied(logEntry))
+        callback(logEntry, isFilterSatisfied(logEntry))
         if (i % filterSearchYieldCount == 0) {
             await delay(0)
         }

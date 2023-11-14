@@ -42,6 +42,9 @@ let scrollToBottomTimer = null
 let selectedLogItemId = ""
 let selectedLogItemBackgroundColor = ""
 
+//MessageFilterHighlight Config
+let useMessageFilterHighlight = true
+
 //Element for use (lazy init)
 let logList
 
@@ -50,8 +53,9 @@ exports.onCreate = function() {
     const loadedSetting = setting.getSetting()
 
     log.init(loadedSetting)
-    scrollToBottomTimerMilles = loadedSetting.scrollToBottomTimerMilles
     initUI(loadedSetting)
+    scrollToBottomTimerMilles = loadedSetting.scrollToBottomTimerMilles
+    useMessageFilterHighlight = loadedSetting.useMessageFilterHighlight
 
     adb.trackDevices(updateDeviceList)
 
@@ -64,7 +68,7 @@ exports.onCreate = function() {
         log.updateTagFilter(this.value, setVisibilityLogLine)
     });
     document.querySelector("#messageFilter").addEventListener('input', function() {
-        log.updateMessageFilter(this.value, setVisibilityLogLine)
+        log.updateMessageFilter(this.value, updateMessageFilterCallback)
     });
 }
 
@@ -188,7 +192,7 @@ function addLog(logEntry) {
         logList.removeChild(logList.firstChild)
     }
     if (!addResult.isFilterSatisfied) {
-        setVisibilityLogLine(logEntry.logIndex, false)
+        setVisibilityLogLine(logEntry, false)
     }
 }
 
@@ -222,10 +226,6 @@ function scrollToBottom() {
             scrollToBottomTimer = null
         }, scrollToBottomTimerMilles)
     }
-}
-
-function setVisibilityLogLine(logIndex, visible) {
-    document.querySelector("#log_" + logIndex).style.display = visible ? '' : 'none'
 }
 
 async function updateDeviceList() {
@@ -287,10 +287,8 @@ function createLogTab(className) {
 }
 
 function createLogLine(logEntry) {
-    let dateString = moment(logEntry.date).format('YYYY-MM-DD hh:mm:ss') + '.' + moment(logEntry.date).millisecond()
-    let level = logLevelTable[logEntry.priority];
-
     let logLine = defaultLogLine.cloneNode(true)
+    let level = logLevelTable[logEntry.priority]
     logLine.className = 'logtab_' + level
     logLine.id = 'log_' + logEntry.logIndex
 
@@ -300,15 +298,39 @@ function createLogLine(logEntry) {
     logLine.querySelector('.logtab_level').innerHTML = level
     logLine.querySelector('.logtab_tag').innerHTML = logEntry.tag
     logLine.querySelector('.logtab_log').innerHTML = logEntry.message */
-    logLine.querySelector('.logtab_log').innerHTML = dateString.padEnd(23, ' ') + ' ' +
-                                                     logEntry.pid.toString().padStart(5, ' ') + ' ' +
-                                                     logEntry.tid.toString().padStart(5, ' ') + ' ' +
-                                                     level + ' ' + logEntry.tag + ':  ' + logEntry.message
+    logLine.querySelector('.logtab_log').innerHTML = getLogLineInnerHtml(logEntry)
 
     logLine.onclick = function() {
         updateFooterDetailMessage(logLine.id, logEntry.message)
     }
     return logLine
+}
+
+function updateLogLineMessage(logEntry) {
+    document.querySelector("#log_" + logEntry.logIndex).querySelector('.logtab_log').innerHTML = getLogLineInnerHtml(logEntry)
+}
+
+function setVisibilityLogLine(logEntry, visible) {
+    document.querySelector("#log_" + logEntry.logIndex).style.display = visible ? '' : 'none'
+}
+
+function updateMessageFilterCallback(logEntry, visible) {
+    setVisibilityLogLine(logEntry, visible)
+    updateLogLineMessage(logEntry)
+}
+
+function getLogLineInnerHtml(logEntry) {
+    let dateString = moment(logEntry.date).format('YYYY-MM-DD hh:mm:ss') + '.' + moment(logEntry.date).millisecond()
+    let level = logLevelTable[logEntry.priority]
+    let highlightKeyword = document.querySelector("#messageFilter").value
+    let message = logEntry.message
+    if (useMessageFilterHighlight == true && highlightKeyword != null && highlightKeyword != "") {
+        message = logEntry.message.replaceAll(highlightKeyword, '<loghighlight>' + highlightKeyword + '</loghighlight>')
+    }
+    return dateString.padEnd(23, ' ') + ' ' +
+            logEntry.pid.toString().padStart(5, ' ') + ' ' +
+            logEntry.tid.toString().padStart(5, ' ') + ' ' +
+            level + ' ' + logEntry.tag + ':  ' + message
 }
 
 function updateFooterDetailMessage(id, message) {

@@ -163,9 +163,18 @@ logline:hover {
     background: #eaeaea;
 }
 
-loghighlight {
+logmessagefilter {
     color: #000000;
     background: #ffff00;
+    -webkit-user-select: text;
+    -webkit-user-drag: unset;
+    -webkit-app-region: unset;
+    cursor: auto;
+}
+
+loghighlight {
+    color: #000000;
+    background: #00ffff;
     -webkit-user-select: text;
     -webkit-user-drag: unset;
     -webkit-app-region: unset;

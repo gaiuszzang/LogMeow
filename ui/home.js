@@ -67,6 +67,9 @@ exports.onCreate = function() {
     document.querySelector("#tagFilter").addEventListener('input', function() {
         log.updateTagFilter(this.value, setVisibilityLogLine)
     });
+    document.querySelector("#highlight").addEventListener('input', function() {
+        log.updateHighlight(this.value, updateHighlightCallback)
+    });
     document.querySelector("#messageFilter").addEventListener('input', function() {
         log.updateMessageFilter(this.value, updateMessageFilterCallback)
     });
@@ -314,6 +317,11 @@ function setVisibilityLogLine(logEntry, visible) {
     document.querySelector("#log_" + logEntry.logIndex).style.display = visible ? '' : 'none'
 }
 
+function updateHighlightCallback(logEntry, visible) {
+    setVisibilityLogLine(logEntry, visible)
+    updateLogLineMessage(logEntry)    
+}
+
 function updateMessageFilterCallback(logEntry, visible) {
     setVisibilityLogLine(logEntry, visible)
     updateLogLineMessage(logEntry)
@@ -322,10 +330,14 @@ function updateMessageFilterCallback(logEntry, visible) {
 function getLogLineInnerHtml(logEntry) {
     let dateString = moment(logEntry.date).format('YYYY-MM-DD hh:mm:ss') + '.' + moment(logEntry.date).millisecond()
     let level = logLevelTable[logEntry.priority]
-    let highlightKeyword = document.querySelector("#messageFilter").value
+    let messageFilterKeyword = document.querySelector("#messageFilter").value
+    let highlightKeyword = document.querySelector("#highlight").value
     let message = logEntry.message
-    if (useMessageFilterHighlight == true && highlightKeyword != null && highlightKeyword != "") {
-        message = logEntry.message.replaceAll(highlightKeyword, '<loghighlight>' + highlightKeyword + '</loghighlight>')
+    if (useMessageFilterHighlight == true && messageFilterKeyword != null && messageFilterKeyword != "") {
+        message = message.replaceAll(messageFilterKeyword, '<logmessagefilter>' + messageFilterKeyword + '</logmessagefilter>')
+    }
+    if (highlightKeyword != null && highlightKeyword != "") {
+        message = message.replaceAll(highlightKeyword, '<loghighlight>' + highlightKeyword + '</loghighlight>')
     }
     return dateString.padEnd(23, ' ') + ' ' +
             logEntry.pid.toString().padStart(5, ' ') + ' ' +

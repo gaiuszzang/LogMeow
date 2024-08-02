@@ -11,6 +11,7 @@ let useFilterIgnoreCase = true
 let levelFilter = 0
 let pidFilter = 0
 let tagFilter = ""
+let highlightKeyword = ""
 let messageFilter = ""
 
 
@@ -64,6 +65,11 @@ exports.updatePidFilter = function(pid, callback) {
 
 exports.updateTagFilter = function(tag, callback) {
     tagFilter = tag.trim()
+    runFilter(callback)
+}
+
+exports.updateHighlight = function(keyword, callback) {
+    highlightKeyword = keyword.trim()
     runFilter(callback)
 }
 

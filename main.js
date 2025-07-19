@@ -1,7 +1,10 @@
 const { app, BrowserWindow, ipcMain, Menu, powerMonitor, nativeTheme } = require('electron')
+const remote = require('@electron/remote/main');
+remote.initialize();
 
 
-const appVersion = "1.0.8"
+
+const appVersion = "1.0.9"
 const isDebug = false
 
 let mainWin;
@@ -14,13 +17,13 @@ function createWindow() {
         minHeight: 600,
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true
+            contextIsolation: false
         },
         frame: true,
         resizable: true,
         show: true,
     });
+    remote.enable(mainWin.webContents);
     mainWin.loadFile('ui/home.html')
     mainWin.setMenu(null)
     // Open the DevTools.
@@ -87,6 +90,10 @@ async function userExit() {
 }
 
 //App LifeCycle
-app.on('ready', onCreate)
+app.on('ready', async () => {
+    const {default: fixPath} = await import('fix-path');
+    fixPath();
+    onCreate();
+})
 app.on('will-quit', onDestroy)
 powerMonitor.on('shutdown', userExit)

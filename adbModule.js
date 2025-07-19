@@ -1,12 +1,15 @@
-const { process, remote, ipcRenderer } = require('electron')
+const { process, ipcRenderer } = require('electron')
+const remote = require('@electron/remote')
 const { exec, execSync, spawn } = require('child_process')
 const adb = require('adbkit');
-let client = adb.createClient();
+let client = adb.createClient({
+    host: '127.0.0.1',
+    port: 5037
+});
 let activeLogcat = null
 let logIndex = 0
 
-const fixPath = require('fix-path')
-fixPath()
+
 
 exports.getDevices = async function() {
     return await getAdbDevices()

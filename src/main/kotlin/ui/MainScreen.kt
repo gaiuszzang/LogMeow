@@ -2,6 +2,7 @@ package ui
 
 import adb.data.AdbDeviceState
 import adb.data.LogLevel
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +36,7 @@ import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
@@ -57,6 +60,7 @@ import ui.icons.StopIcon
 import ui.icons.VideoIcon
 import vm.DeepLinkPopupViewModel
 import vm.MainViewModel
+import vm.SelectionMode
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 
@@ -89,11 +93,16 @@ fun MainScreen(
                 .focusRequester(focusRequester)
                 .focusTarget()
                 .onPreviewKeyEvent { keyEvent ->
-                    if (keyEvent.type == KeyEventType.KeyDown &&
-                        (keyEvent.isMetaPressed || keyEvent.isCtrlPressed)) {
-                        when (keyEvent.key) {
+                    if (keyEvent.type == KeyEventType.KeyDown) {
+                        when {
+                            // Handle Cmd+T (macOS) or Ctrl+T (Windows/Linux) for Text Selection mode toggle
+                            (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.T -> {
+                                viewModel.toggleTextSelectionMode()
+                                focusRequester.requestFocus()
+                                true
+                            }
                             // Handle Cmd+C (macOS) or Ctrl+C (Windows/Linux)
-                            Key.C -> {
+                            (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.C -> {
                                 val selectedLogsText = viewModel.getSelectedLogsAsText()
                                 if (selectedLogsText.isNotEmpty()) {
                                     val clipboard = Toolkit.getDefaultToolkit().systemClipboard
@@ -104,7 +113,7 @@ fun MainScreen(
                                 }
                             }
                             // Handle Cmd+B (macOS) or Ctrl+B (Windows/Linux) for bookmark
-                            Key.B -> {
+                            (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.B -> {
                                 viewModel.toggleBookmarkForSelectedLogs()
                                 true
                             }
@@ -139,7 +148,8 @@ fun MainScreen(
                     )
                     DropdownMenu(
                         expanded = deviceListExpanded,
-                        onDismissRequest = { deviceListExpanded = false }
+                        onDismissRequest = { deviceListExpanded = false },
+                        modifier = Modifier.width(300.dp)
                     ) {
                         devices.forEach { device ->
                             DropdownMenuItem(
@@ -321,22 +331,48 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (uiState.bookmarkCount > 0) {
+                // Left side: Selection Mode (only shown in Text Selection mode)
+                if (uiState.selectionMode == SelectionMode.Text) {
                     Text(
-                        text = "Bookmarks : ${uiState.bookmarkCount}",
+                        modifier = Modifier
+                            .background(
+                                color = Color(0xFFE0A030),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        text = "Text Selection",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colors.surface
+                    )
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                // Right side: Bookmarks and LogSize
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (uiState.bookmarkCount > 0) {
+                        Text(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            text = "Bookmarks : ${uiState.bookmarkCount}",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(Modifier.width(16.dp))
+                    }
+                    Text(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        text = "LogSize : ${uiState.allLogCount}",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
-                    Spacer(Modifier.width(16.dp))
                 }
-                Text(
-                    text = "LogSize : ${uiState.allLogCount}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
             }
         }
 

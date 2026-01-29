@@ -4,16 +4,15 @@ import adb.data.LogcatMessage
 import adb.data.LogLevel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +41,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.common.LazyListScrollBar
+import vm.SelectionMode
 import vm.UiState
 
 @Composable
@@ -52,20 +52,21 @@ fun LogCatView(
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs
+    val isLogItemMode = uiState.selectionMode == SelectionMode.LogItem
     var isDragging by remember { mutableStateOf(false) }
     var dragMouseY by remember { mutableFloatStateOf(0f) }
     var containerHeight by remember { mutableFloatStateOf(0f) }
 
-    // Auto-scroll to the bottom when a new log is added
+    // Auto-scroll to the bottom when a new log is added (only in LogItem mode)
     LaunchedEffect(filteredLogs.size) {
-        if (filteredLogs.isNotEmpty()) {
+        if (isLogItemMode && filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
         }
     }
 
-    // Auto-scroll while dragging outside the list bounds
-    LaunchedEffect(isDragging, dragMouseY, containerHeight) {
-        if (!isDragging) return@LaunchedEffect
+    // Auto-scroll while dragging outside the list bounds (only in LogItem mode)
+    LaunchedEffect(isDragging, dragMouseY, containerHeight, isLogItemMode) {
+        if (!isDragging || !isLogItemMode) return@LaunchedEffect
 
         while (isDragging) {
             val scrollAmount = when {
@@ -107,57 +108,77 @@ fun LogCatView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 4.dp, vertical = 4.dp)
-                .pointerInput(filteredLogs) {
-                    containerHeight = size.height.toFloat()
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            when (event.type) {
-                                PointerEventType.Press -> {
-                                    val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                                    isDragging = !isAlt
-                                }
-                                PointerEventType.Release -> {
-                                    isDragging = false
-                                }
-                                PointerEventType.Move -> {
-                                    if (isDragging && event.buttons.isPrimaryPressed) {
-                                        val y = event.changes.firstOrNull()?.position?.y ?: 0f
-                                        dragMouseY = y
-                                        // Find the item at the current Y position
-                                        val layoutInfo = listState.layoutInfo
-                                        for (itemInfo in layoutInfo.visibleItemsInfo) {
-                                            if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
-                                                val index = itemInfo.index
-                                                if (index in filteredLogs.indices) {
-                                                    onDragSelect(filteredLogs[index].id)
+        ) {
+            val lazyColumnContent: @Composable () -> Unit = {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 12.dp)
+                        .then(
+                            if (isLogItemMode) {
+                                Modifier.pointerInput(filteredLogs) {
+                                    containerHeight = size.height.toFloat()
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            when (event.type) {
+                                                PointerEventType.Press -> {
+                                                    val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                                    isDragging = !isAlt
                                                 }
-                                                break
+                                                PointerEventType.Release -> {
+                                                    isDragging = false
+                                                }
+                                                PointerEventType.Move -> {
+                                                    if (isDragging && event.buttons.isPrimaryPressed) {
+                                                        val y = event.changes.firstOrNull()?.position?.y ?: 0f
+                                                        dragMouseY = y
+                                                        // Find the item at the current Y position
+                                                        val layoutInfo = listState.layoutInfo
+                                                        for (itemInfo in layoutInfo.visibleItemsInfo) {
+                                                            if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
+                                                                val index = itemInfo.index
+                                                                if (index in filteredLogs.indices) {
+                                                                    onDragSelect(filteredLogs[index].id)
+                                                                }
+                                                                break
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
+                            } else {
+                                Modifier
                             }
-                        }
+                        )
+                    ,
+                    userScrollEnabled = isLogItemMode // Disable scroll in Text Selection mode
+                ) {
+                    items(filteredLogs.size) { index ->
+                        val log = filteredLogs[index]
+                        LogRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            log = log,
+                            filterTag = uiState.filterTag,
+                            filterMessage = uiState.filterMessage,
+                            isLogItemMode = isLogItemMode,
+                            onLogClick = { isShift, isAlt ->
+                                onLogClick(log.id, isShift, isAlt)
+                            }
+                        )
                     }
                 }
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                //contentPadding = PaddingValues(6.dp)
-            ) {
-                items(filteredLogs.size) { index ->
-                    val log = filteredLogs[index]
-                    LogRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        log = log,
-                        filterTag = uiState.filterTag,
-                        filterMessage = uiState.filterMessage,
-                        onLogClick = { isShift, isAlt ->
-                            onLogClick(log.id, isShift, isAlt)
-                        }
-                    )
+            }
+
+            if (isLogItemMode) {
+                lazyColumnContent()
+            } else {
+                SelectionContainer {
+                    lazyColumnContent()
                 }
             }
             LazyListScrollBar(
@@ -179,6 +200,7 @@ private fun LogRow(
     log: LogcatMessage,
     filterTag: String?,
     filterMessage: String?,
+    isLogItemMode: Boolean,
     onLogClick: (isShift: Boolean, isAlt: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -204,175 +226,191 @@ private fun LogRow(
     Row(
         modifier = modifier
             .background(rowBackgroundColor)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        when (event.type) {
-                            PointerEventType.Press -> {
-                                val isShift = event.keyboardModifiers.isShiftPressed
-                                val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                                onLogClick(isShift, isAlt)
-                            }
-                            PointerEventType.Enter -> {
-                                isHovered = true
-                            }
-                            PointerEventType.Exit -> {
-                                isHovered = false
+            .then(
+                if (isLogItemMode) {
+                    Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                when (event.type) {
+                                    PointerEventType.Press -> {
+                                        val isShift = event.keyboardModifiers.isShiftPressed
+                                        val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                        onLogClick(isShift, isAlt)
+                                    }
+                                    PointerEventType.Enter -> {
+                                        isHovered = true
+                                    }
+                                    PointerEventType.Exit -> {
+                                        isHovered = false
+                                    }
+                                }
                             }
                         }
                     }
+                } else {
+                    Modifier
                 }
-            }
+            )
             .padding(vertical = 4.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.Top
     ) {
-        // Timestamp - fixed width 180dp
-        Text(
-            text = log.timestamp,
-            color = Color.Gray,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            minLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(180.dp)
-        )
+        LogRowContent(log, filterTag, filterMessage, logColor)
+    }
+}
 
-        // Level - fixed width 30dp
-        Text(
-            text = log.level.name.first().toString(),
-            color = logColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.width(30.dp)
-        )
+@Composable
+private fun RowScope.LogRowContent(
+    log: LogcatMessage,
+    filterTag: String?,
+    filterMessage: String?,
+    logColor: Color
+) {
+    // Timestamp - fixed width 180dp
+    Text(
+        text = log.timestamp,
+        color = Color.Gray,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 1,
+        minLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(180.dp)
+    )
 
-        // PID - fixed width 60dp
-        Text(
-            text = log.pid.toString(),
-            color = Color.Gray,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            minLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(50.dp)
-        )
+    // Level - fixed width 30dp
+    Text(
+        text = log.level.name.first().toString(),
+        color = logColor,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier.width(30.dp)
+    )
 
-        // TID - fixed width 60dp
-        Text(
-            text = log.tid.toString(),
-            color = Color.Gray,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            minLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(50.dp)
-        )
+    // PID - fixed width 60dp
+    Text(
+        text = log.pid.toString(),
+        color = Color.Gray,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 1,
+        minLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(50.dp)
+    )
 
-        // Tag - fixed width 220dp with highlighting
-        Box(modifier = Modifier.width(220.dp)) {
-            if (!filterTag.isNullOrBlank()) {
-                Text(
-                    text = buildAnnotatedString {
-                        var currentIndex = 0
-                        val tag = log.tag
-                        val lowerTag = tag.lowercase()
-                        val lowerFilter = filterTag.lowercase()
+    // TID - fixed width 60dp
+    Text(
+        text = log.tid.toString(),
+        color = Color.Gray,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 1,
+        minLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.width(50.dp)
+    )
 
-                        while (currentIndex < tag.length) {
-                            val matchIndex = lowerTag.indexOf(lowerFilter, currentIndex)
-                            if (matchIndex == -1) {
-                                withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
-                                    append(tag.substring(currentIndex))
-                                }
-                                break
-                            } else {
-                                if (matchIndex > currentIndex) {
-                                    withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
-                                        append(tag.substring(currentIndex, matchIndex))
-                                    }
-                                }
-                                withStyle(style = SpanStyle(
-                                    color = MaterialTheme.colors.surface,
-                                    background = Color.Yellow
-                                )) {
-                                    append(tag.substring(matchIndex, matchIndex + filterTag.length))
-                                }
-                                currentIndex = matchIndex + filterTag.length
-                            }
-                        }
-                    },
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    minLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            } else {
-                Text(
-                    text = log.tag,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1,
-                    minLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-
-        // Message - fills remaining space with highlighting
-        if (!filterMessage.isNullOrBlank()) {
+    // Tag - fixed width 220dp with highlighting
+    Box(modifier = Modifier.width(220.dp)) {
+        if (!filterTag.isNullOrBlank()) {
             Text(
                 text = buildAnnotatedString {
                     var currentIndex = 0
-                    val message = log.message
-                    val lowerMessage = message.lowercase()
-                    val lowerFilter = filterMessage.lowercase()
+                    val tag = log.tag
+                    val lowerTag = tag.lowercase()
+                    val lowerFilter = filterTag.lowercase()
 
-                    while (currentIndex < message.length) {
-                        val matchIndex = lowerMessage.indexOf(lowerFilter, currentIndex)
+                    while (currentIndex < tag.length) {
+                        val matchIndex = lowerTag.indexOf(lowerFilter, currentIndex)
                         if (matchIndex == -1) {
-                            withStyle(style = SpanStyle(color = logColor)) {
-                                append(message.substring(currentIndex))
+                            withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
+                                append(tag.substring(currentIndex))
                             }
                             break
                         } else {
                             if (matchIndex > currentIndex) {
-                                withStyle(style = SpanStyle(color = logColor)) {
-                                    append(message.substring(currentIndex, matchIndex))
+                                withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
+                                    append(tag.substring(currentIndex, matchIndex))
                                 }
                             }
                             withStyle(style = SpanStyle(
                                 color = MaterialTheme.colors.surface,
                                 background = Color.Yellow
                             )) {
-                                append(message.substring(matchIndex, matchIndex + filterMessage.length))
+                                append(tag.substring(matchIndex, matchIndex + filterTag.length))
                             }
-                            currentIndex = matchIndex + filterMessage.length
+                            currentIndex = matchIndex + filterTag.length
                         }
                     }
                 },
                 fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(1f)
+                maxLines = 1,
+                minLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         } else {
             Text(
-                text = log.message,
-                color = logColor,
+                text = log.tag,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
                 fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(1f)
+                maxLines = 1,
+                minLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+
+    // Message - fills remaining space with highlighting
+    if (!filterMessage.isNullOrBlank()) {
+        Text(
+            text = buildAnnotatedString {
+                var currentIndex = 0
+                val message = log.message
+                val lowerMessage = message.lowercase()
+                val lowerFilter = filterMessage.lowercase()
+
+                while (currentIndex < message.length) {
+                    val matchIndex = lowerMessage.indexOf(lowerFilter, currentIndex)
+                    if (matchIndex == -1) {
+                        withStyle(style = SpanStyle(color = logColor)) {
+                            append(message.substring(currentIndex))
+                        }
+                        break
+                    } else {
+                        if (matchIndex > currentIndex) {
+                            withStyle(style = SpanStyle(color = logColor)) {
+                                append(message.substring(currentIndex, matchIndex))
+                            }
+                        }
+                        withStyle(style = SpanStyle(
+                            color = MaterialTheme.colors.surface,
+                            background = Color.Yellow
+                        )) {
+                            append(message.substring(matchIndex, matchIndex + filterMessage.length))
+                        }
+                        currentIndex = matchIndex + filterMessage.length
+                    }
+                }
+            },
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f)
+        )
+    } else {
+        Text(
+            text = log.message,
+            color = logColor,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f)
+        )
     }
 }

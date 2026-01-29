@@ -22,6 +22,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
+enum class SelectionMode {
+    LogItem,
+    Text
+}
+
 data class UiState(
     val logLevelFilter: LogLevel? = null,
     val filterPid: Int? = null,
@@ -31,7 +36,8 @@ data class UiState(
     val filteredLogs: ImmutableList<LogcatMessage> = persistentListOf(),
     val allLogCount: Int = 0,
     val bookmarkCount: Int = 0,
-    val bookmarkedIndicesInFilteredLogs: ImmutableList<Int> = persistentListOf()
+    val bookmarkedIndicesInFilteredLogs: ImmutableList<Int> = persistentListOf(),
+    val selectionMode: SelectionMode = SelectionMode.LogItem
 )
 
 class MainViewModel(
@@ -371,6 +377,23 @@ class MainViewModel(
             allLogs[index] = allLogs[index].copy(isBookmarked = !allLogs[index].isBookmarked)
             updateFilteredLogs()
         }
+    }
+
+    fun toggleTextSelectionMode() {
+        val currentMode = _uiState.value.selectionMode
+        val newMode = if (currentMode == SelectionMode.LogItem) SelectionMode.Text else SelectionMode.LogItem
+
+        // When switching to Text mode, deselect all logs
+        if (newMode == SelectionMode.Text) {
+            for (i in allLogs.indices) {
+                if (allLogs[i].isSelected) {
+                    allLogs[i] = allLogs[i].copy(isSelected = false)
+                }
+            }
+        }
+
+        _uiState.value = _uiState.value.copy(selectionMode = newMode)
+        updateFilteredLogs()
     }
 
     fun scrollToFilteredLogIndex(index: Int): Long? {

@@ -19,15 +19,18 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.SpanStyle
@@ -38,22 +41,57 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.collections.immutable.ImmutableList
 import ui.common.LazyListScrollBar
 import vm.UiState
 
 @Composable
 fun LogCatView(
     uiState: UiState,
-    onLogClick: (id: Long, isShift: Boolean, isAlt: Boolean) -> Unit
+    onLogClick: (id: Long, isShift: Boolean, isAlt: Boolean) -> Unit,
+    onDragSelect: (id: Long) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs
+    var isDragging by remember { mutableStateOf(false) }
+    var dragMouseY by remember { mutableFloatStateOf(0f) }
+    var containerHeight by remember { mutableFloatStateOf(0f) }
 
     // Auto-scroll to the bottom when a new log is added
     LaunchedEffect(filteredLogs.size) {
         if (filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
+        }
+    }
+
+    // Auto-scroll while dragging outside the list bounds
+    LaunchedEffect(isDragging, dragMouseY, containerHeight) {
+        if (!isDragging) return@LaunchedEffect
+
+        while (isDragging) {
+            val scrollAmount = when {
+                dragMouseY < 0 -> -1 // Scroll up
+                dragMouseY > containerHeight -> 1 // Scroll down
+                else -> 0
+            }
+
+            if (scrollAmount != 0) {
+                val firstVisibleIndex = listState.firstVisibleItemIndex
+                val targetIndex = (firstVisibleIndex + scrollAmount).coerceIn(0, filteredLogs.size - 1)
+                listState.scrollToItem(targetIndex)
+
+                // Select the item at the edge
+                if (filteredLogs.isNotEmpty()) {
+                    val selectIndex = if (scrollAmount < 0) {
+                        listState.firstVisibleItemIndex
+                    } else {
+                        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: (filteredLogs.size - 1)
+                    }
+                    if (selectIndex in filteredLogs.indices) {
+                        onDragSelect(filteredLogs[selectIndex].id)
+                    }
+                }
+            }
+            delay(50) // Scroll speed
         }
     }
 
@@ -69,6 +107,40 @@ fun LogCatView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 4.dp, vertical = 4.dp)
+                .pointerInput(filteredLogs) {
+                    containerHeight = size.height.toFloat()
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            when (event.type) {
+                                PointerEventType.Press -> {
+                                    val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                    isDragging = !isAlt
+                                }
+                                PointerEventType.Release -> {
+                                    isDragging = false
+                                }
+                                PointerEventType.Move -> {
+                                    if (isDragging && event.buttons.isPrimaryPressed) {
+                                        val y = event.changes.firstOrNull()?.position?.y ?: 0f
+                                        dragMouseY = y
+                                        // Find the item at the current Y position
+                                        val layoutInfo = listState.layoutInfo
+                                        for (itemInfo in layoutInfo.visibleItemsInfo) {
+                                            if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
+                                                val index = itemInfo.index
+                                                if (index in filteredLogs.indices) {
+                                                    onDragSelect(filteredLogs[index].id)
+                                                }
+                                                break
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
         ) {
             LazyColumn(
                 state = listState,

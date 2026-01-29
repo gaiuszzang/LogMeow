@@ -309,6 +309,9 @@ fun MainScreen(
                             isAlt -> viewModel.toggleSingleLogSelection(id)
                             else -> viewModel.selectSingleLog(id)
                         }
+                    },
+                    onDragSelect = { id ->
+                        viewModel.selectRangeLog(id)
                     }
                 )
             }

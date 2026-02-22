@@ -269,6 +269,22 @@ class MainViewModel(
         return levelMatch && pidMatch && tagMatch && messageMatch
     }
 
+    private fun appendNewLog(logMessage: LogcatMessage) {
+        // add log into All Logs
+        allLogs.add(logMessage)
+
+        // add log to ui as filtered condition
+        val currentState = _uiState.value
+        if (isLogMatchingFilter(logMessage)) {
+            _uiState.value = currentState.copy(
+                filteredLogs = (currentState.filteredLogs + logMessage).toImmutableList(),
+                allLogCount = allLogs.size
+            )
+        } else {
+            _uiState.value = currentState.copy(allLogCount = allLogs.size)
+        }
+    }
+
     private fun updateFilteredLogs() {
         val filtered = allLogs.filter { log ->
             val levelMatch = _uiState.value.logLevelFilter == null || log.level == _uiState.value.logLevelFilter
@@ -415,8 +431,7 @@ class MainViewModel(
             adbService.getLogcatFlow(deviceId)
                 .onEach { logMessage ->
                     // Append new log to the existing list
-                    allLogs.add(logMessage)
-                    updateFilteredLogs()
+                    appendNewLog(logMessage)
                 }
                 .collect() // Use collect to keep it within this job
         }

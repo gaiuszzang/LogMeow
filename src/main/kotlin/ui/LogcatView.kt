@@ -48,7 +48,9 @@ import vm.UiState
 fun LogCatView(
     uiState: UiState,
     onLogClick: (id: Long, isShift: Boolean, isAlt: Boolean) -> Unit,
-    onDragSelect: (id: Long) -> Unit = {}
+    onLogDoubleClick: (id: Long) -> Unit = {},
+    onDragSelect: (id: Long) -> Unit = {},
+    scrollToIndexFlow: kotlinx.coroutines.flow.Flow<Int>? = null
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs
@@ -61,6 +63,15 @@ fun LogCatView(
     LaunchedEffect(filteredLogs.size) {
         if (isLogItemMode && filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
+        }
+    }
+
+    // Scroll to specific index when requested (bookmark navigation)
+    LaunchedEffect(scrollToIndexFlow) {
+        scrollToIndexFlow?.collect { targetIndex ->
+            if (targetIndex in 0 until listState.layoutInfo.totalItemsCount) {
+                listState.scrollToItem(targetIndex)
+            }
         }
     }
 
@@ -168,6 +179,9 @@ fun LogCatView(
                             isLogItemMode = isLogItemMode,
                             onLogClick = { isShift, isAlt ->
                                 onLogClick(log.id, isShift, isAlt)
+                            },
+                            onLogDoubleClick = {
+                                onLogDoubleClick(log.id)
                             }
                         )
                     }
@@ -202,9 +216,11 @@ private fun LogRow(
     filterMessage: String?,
     isLogItemMode: Boolean,
     onLogClick: (isShift: Boolean, isAlt: Boolean) -> Unit,
+    onLogDoubleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isHovered by remember { mutableStateOf(false) }
+    var lastClickTime by remember { mutableStateOf(0L) }
 
     val logColor = when (log.level) {
         LogLevel.VERBOSE -> Color.Gray
@@ -234,9 +250,15 @@ private fun LogRow(
                                 val event = awaitPointerEvent()
                                 when (event.type) {
                                     PointerEventType.Press -> {
-                                        val isShift = event.keyboardModifiers.isShiftPressed
-                                        val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                                        onLogClick(isShift, isAlt)
+                                        val now = System.currentTimeMillis()
+                                        if (now - lastClickTime < 300) {
+                                            onLogDoubleClick()
+                                        } else {
+                                            val isShift = event.keyboardModifiers.isShiftPressed
+                                            val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                            onLogClick(isShift, isAlt)
+                                        }
+                                        lastClickTime = now
                                     }
                                     PointerEventType.Enter -> {
                                         isHovered = true

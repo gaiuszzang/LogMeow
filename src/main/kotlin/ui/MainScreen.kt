@@ -52,6 +52,8 @@ import ui.common.IconButton
 import ui.common.RowItemDivider
 import ui.common.RowItemSpacer
 import ui.icons.CameraIcon
+import ui.icons.ChevronLeftIcon
+import ui.icons.ChevronRightIcon
 import ui.icons.DeleteIcon
 import ui.icons.NavigationIcon
 import ui.icons.PhoneIcon
@@ -116,6 +118,11 @@ fun MainScreen(
                             }
                             // Handle Cmd+B (macOS) or Ctrl+B (Windows/Linux) for bookmark
                             (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.B -> {
+                                viewModel.toggleBookmarkForSelectedLogs()
+                                true
+                            }
+                            // Handle Space key for bookmark (same as Cmd+B)
+                            !keyEvent.isMetaPressed && !keyEvent.isCtrlPressed && !keyEvent.isAltPressed && keyEvent.key == Key.Spacebar -> {
                                 viewModel.toggleBookmarkForSelectedLogs()
                                 true
                             }
@@ -321,10 +328,16 @@ fun MainScreen(
                             isAlt -> viewModel.toggleSingleLogSelection(id)
                             else -> viewModel.selectSingleLog(id)
                         }
+                        focusRequester.requestFocus()
+                    },
+                    onLogDoubleClick = { id ->
+                        viewModel.toggleBookmarkForLog(id)
+                        focusRequester.requestFocus()
                     },
                     onDragSelect = { id ->
                         viewModel.selectRangeLog(id)
-                    }
+                    },
+                    scrollToIndexFlow = viewModel.scrollToFilteredIndex
                 )
             }
 
@@ -364,6 +377,18 @@ fun MainScreen(
                             text = "Bookmarks : ${uiState.bookmarkCount}",
                             fontSize = 12.sp,
                             color = Color.Gray
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        IconButton(
+                            modifier = Modifier.size(20.dp),
+                            icon = ChevronLeftIcon,
+                            onClick = { viewModel.navigateToPreviousBookmark() }
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        IconButton(
+                            modifier = Modifier.size(20.dp),
+                            icon = ChevronRightIcon,
+                            onClick = { viewModel.navigateToNextBookmark() }
                         )
                         Spacer(Modifier.width(16.dp))
                     }

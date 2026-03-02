@@ -12,7 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.launchIn
@@ -72,6 +74,10 @@ class MainViewModel(
     // UI state
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
+
+    // Scroll event for bookmark navigation
+    private val _scrollToFilteredIndex = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    val scrollToFilteredIndex = _scrollToFilteredIndex.asSharedFlow()
 
     private var logcatJob: Job? = null
     private var screenRecordingOutputPath: String? = null
@@ -395,6 +401,38 @@ class MainViewModel(
         }
     }
 
+    fun navigateToPreviousBookmark() {
+        val bookmarkedIndices = _uiState.value.bookmarkedIndicesInFilteredLogs
+        if (bookmarkedIndices.isEmpty()) return
+        val filteredLogs = _uiState.value.filteredLogs
+
+        val currentIndex = filteredLogs.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+        val target = if (currentIndex != null) {
+            bookmarkedIndices.lastOrNull { it < currentIndex } ?: bookmarkedIndices.last()
+        } else {
+            bookmarkedIndices.last()
+        }
+
+        selectSingleLog(filteredLogs[target].id)
+        _scrollToFilteredIndex.tryEmit(target)
+    }
+
+    fun navigateToNextBookmark() {
+        val bookmarkedIndices = _uiState.value.bookmarkedIndicesInFilteredLogs
+        if (bookmarkedIndices.isEmpty()) return
+        val filteredLogs = _uiState.value.filteredLogs
+
+        val currentIndex = filteredLogs.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+        val target = if (currentIndex != null) {
+            bookmarkedIndices.firstOrNull { it > currentIndex } ?: bookmarkedIndices.first()
+        } else {
+            bookmarkedIndices.first()
+        }
+
+        selectSingleLog(filteredLogs[target].id)
+        _scrollToFilteredIndex.tryEmit(target)
+    }
+
     fun toggleTextSelectionMode() {
         val currentMode = _uiState.value.selectionMode
         val newMode = if (currentMode == SelectionMode.LogItem) SelectionMode.Text else SelectionMode.LogItem
@@ -412,6 +450,7 @@ class MainViewModel(
         updateFilteredLogs()
     }
 
+    @Suppress("unused")
     fun scrollToFilteredLogIndex(index: Int): Long? {
         val filteredLogs = _uiState.value.filteredLogs
         if (index in filteredLogs.indices) {

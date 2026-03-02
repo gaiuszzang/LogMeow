@@ -58,6 +58,8 @@ import ui.icons.PhoneIcon
 import ui.icons.PlayIcon
 import ui.icons.StopIcon
 import ui.icons.VideoIcon
+import org.koin.compose.koinInject
+import repository.MainRepository
 import vm.DeepLinkPopupViewModel
 import vm.MainViewModel
 import vm.SelectionMode
@@ -380,9 +382,10 @@ fun MainScreen(
         if (isDeepLinkPopupVisible) {
             val currentDevice = selectedDevice
             if (currentDevice != null) {
+                val mainRepository: MainRepository = koinInject()
                 DeepLinkPopupScreen(
                     viewModel = remember(currentDevice.id) {
-                        DeepLinkPopupViewModel(viewModel.getAdbService(), currentDevice.id)
+                        DeepLinkPopupViewModel(viewModel.getAdbService(), currentDevice.id, mainRepository)
                     },
                     onDismiss = { viewModel.hideDeepLinkPopup() }
                 )

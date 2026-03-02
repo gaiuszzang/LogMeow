@@ -1,6 +1,7 @@
 package vm
 
 import adb.AdbService
+import data.DeepLinkHistory
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -11,21 +12,34 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import repository.MainRepository
 
 data class DeepLinkUiState(
     val inputText: String = "",
-    val history: ImmutableList<String> = persistentListOf()
+    val history: ImmutableList<String> = persistentListOf(),
+    val selectedIndex: Int? = null
 )
 
 class DeepLinkPopupViewModel(
     private val adbService: AdbService,
-    private val deviceId: String
+    private val deviceId: String,
+    private val mainRepository: MainRepository
 ) {
 
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _uiState = MutableStateFlow(DeepLinkUiState())
     val uiState = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            mainRepository.getDeepLinkHistoryFlow().collect { history ->
+                _uiState.value = _uiState.value.copy(
+                    history = history.list.toImmutableList()
+                )
+            }
+        }
+    }
 
     fun updateInputText(text: String) {
         _uiState.value = _uiState.value.copy(inputText = text)
@@ -48,17 +62,19 @@ class DeepLinkPopupViewModel(
 
     private fun addToHistory(scheme: String) {
         val currentHistory = _uiState.value.history.toMutableList()
-
-        // Remove if already exists
         currentHistory.remove(scheme)
-
-        // Add to the top
         currentHistory.add(0, scheme)
+        val newHistory = currentHistory.toImmutableList()
+        _uiState.value = _uiState.value.copy(history = newHistory, selectedIndex = null) //TODO m.c.shin 필요할까?
+        mainRepository.updateDeepLinkHistory(DeepLinkHistory(list = currentHistory))
+    }
 
-        _uiState.value = _uiState.value.copy(history = currentHistory.toImmutableList())
+    fun selectHistoryItem(index: Int) {
+        _uiState.value = _uiState.value.copy(selectedIndex = index)
     }
 
     fun executeHistoryItem(scheme: String) {
+        _uiState.value = _uiState.value.copy(inputText = scheme)
         viewModelScope.launch {
             try {
                 adbService.executeDeepLink(deviceId, scheme)

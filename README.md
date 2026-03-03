@@ -82,7 +82,7 @@ The application automatically searches for scrcpy in common installation paths.
 ./gradlew packageDmg
 ```
 
-Output: `build/compose/binaries/main/dmg/LogMeow-1.0.0.dmg`
+Output: `build/compose/binaries/main/dmg/LogMeow-{version}.dmg`
 
 ### Build MSI (Windows)
 
@@ -90,7 +90,7 @@ Output: `build/compose/binaries/main/dmg/LogMeow-1.0.0.dmg`
 ./gradlew packageMsi
 ```
 
-Output: `build/compose/binaries/main/msi/LogMeow-1.0.0.msi`
+Output: `build/compose/binaries/main/msi/LogMeow-{version}.msi`
 
 ### Build DEB (Linux)
 
@@ -98,7 +98,7 @@ Output: `build/compose/binaries/main/msi/LogMeow-1.0.0.msi`
 ./gradlew packageDeb
 ```
 
-Output: `build/compose/binaries/main/deb/logmeow_1.0.0-1_amd64.deb`
+Output: `build/compose/binaries/main/deb/logmeow_{version}-1_amd64.deb`
 
 ### Build for Current OS
 

@@ -50,7 +50,7 @@ fun LogCatView(
     onLogClick: (id: Long, isShift: Boolean, isAlt: Boolean) -> Unit,
     onLogDoubleClick: (id: Long) -> Unit = {},
     onDragSelect: (id: Long) -> Unit = {},
-    scrollToIndexFlow: kotlinx.coroutines.flow.Flow<Int>? = null
+    scrollToIndexFlow: kotlinx.coroutines.flow.Flow<Int>? = null // TODO m.c.shin 개선 필요
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs

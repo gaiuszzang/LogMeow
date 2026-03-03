@@ -73,16 +73,16 @@ class DeepLinkPopupViewModel(
         _uiState.value = _uiState.value.copy(selectedIndex = index)
     }
 
-    fun executeHistoryItem(scheme: String) {
+    fun loadHistoryItem(scheme: String) {
         _uiState.value = _uiState.value.copy(inputText = scheme)
-        viewModelScope.launch {
-            try {
-                adbService.executeDeepLink(deviceId, scheme)
-                addToHistory(scheme)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+    }
+
+    fun deleteHistoryItem(scheme: String) {
+        val currentHistory = _uiState.value.history.toMutableList()
+        currentHistory.remove(scheme)
+        val newHistory = currentHistory.toImmutableList()
+        _uiState.value = _uiState.value.copy(history = newHistory, selectedIndex = null)
+        mainRepository.updateDeepLinkHistory(DeepLinkHistory(list = currentHistory))
     }
 
     fun onCleared() {

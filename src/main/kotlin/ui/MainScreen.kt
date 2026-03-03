@@ -4,6 +4,7 @@ import adb.data.AdbDeviceState
 import adb.data.LogLevel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +42,8 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,12 +101,6 @@ fun MainScreen(
                 .onPreviewKeyEvent { keyEvent ->
                     if (keyEvent.type == KeyEventType.KeyDown) {
                         when {
-                            // Handle Cmd+T (macOS) or Ctrl+T (Windows/Linux) for Text Selection mode toggle
-                            (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.T -> {
-                                viewModel.toggleTextSelectionMode()
-                                focusRequester.requestFocus()
-                                true
-                            }
                             // Handle Cmd+C (macOS) or Ctrl+C (Windows/Linux)
                             (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.C -> {
                                 val selectedLogsText = viewModel.getSelectedLogsAsText()
@@ -115,11 +111,6 @@ fun MainScreen(
                                 } else {
                                     false
                                 }
-                            }
-                            // Handle Cmd+B (macOS) or Ctrl+B (Windows/Linux) for bookmark
-                            (keyEvent.isMetaPressed || keyEvent.isCtrlPressed) && keyEvent.key == Key.B -> {
-                                viewModel.toggleBookmarkForSelectedLogs()
-                                true
                             }
                             // Handle Space key for bookmark (same as Cmd+B)
                             !keyEvent.isMetaPressed && !keyEvent.isCtrlPressed && !keyEvent.isAltPressed && keyEvent.key == Key.Spacebar -> {
@@ -349,22 +340,36 @@ fun MainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left side: Selection Mode (only shown in Text Selection mode)
-                if (uiState.selectionMode == SelectionMode.Text) {
-                    Text(
-                        modifier = Modifier
-                            .background(
-                                color = Color(0xFFE0A030),
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        text = "Text Selection",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colors.surface
-                    )
-                } else {
-                    Spacer(modifier = Modifier.width(1.dp))
-                }
+                // Left side: Text Selection toggle button
+                val isTextSelectionMode = uiState.selectionMode == SelectionMode.Text
+                var isTextSelectionHovered by remember { mutableStateOf(false) }
+                Text(
+                    modifier = Modifier
+                        .background(
+                            color = when {
+                                isTextSelectionMode -> Color(0xFF505050)
+                                isTextSelectionHovered -> Color(0xFF3A3A3A)
+                                else -> Color.Transparent
+                            },
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    when (event.type) {
+                                        PointerEventType.Enter -> isTextSelectionHovered = true
+                                        PointerEventType.Exit -> isTextSelectionHovered = false
+                                    }
+                                }
+                            }
+                        }
+                        .clickable { viewModel.toggleTextSelectionMode() }
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    text = "Text Selection",
+                    fontSize = 12.sp,
+                    color = if (isTextSelectionMode) Color.White else Color.Gray
+                )
 
                 // Right side: Bookmarks and LogSize
                 Row(
@@ -380,13 +385,13 @@ fun MainScreen(
                         )
                         Spacer(Modifier.width(4.dp))
                         IconButton(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             icon = ChevronLeftIcon,
                             onClick = { viewModel.navigateToPreviousBookmark() }
                         )
                         Spacer(Modifier.width(2.dp))
                         IconButton(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             icon = ChevronRightIcon,
                             onClick = { viewModel.navigateToNextBookmark() }
                         )

@@ -490,6 +490,10 @@ class MainViewModel(
                 if (_selectedDevice.value != null && deviceList.none { it.id == _selectedDevice.value!!.id }) {
                     selectDevice(_selectedDevice.value!!) // This will stop logging and deselect
                 }
+                // Auto-select the first device when no device is currently selected
+                if (_selectedDevice.value == null && deviceList.isNotEmpty()) {
+                    _selectedDevice.value = deviceList.first()
+                }
             }
             .launchIn(viewModelScope)
     }

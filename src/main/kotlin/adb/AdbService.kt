@@ -272,6 +272,40 @@ open class AdbService {
         }
     }
 
+    open suspend fun setupAdbReverse(deviceId: String, remotePort: Int, localPort: Int): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val process = ProcessBuilder(
+                    ADB_COMMAND, "-s", deviceId, "reverse", "tcp:$remotePort", "tcp:$localPort"
+                ).start()
+                process.waitFor(5, TimeUnit.SECONDS)
+                process.exitValue() == 0
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
+        }
+    }
+
+    open suspend fun removeAdbReverse(deviceId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            removeAdbReverseBlocking(deviceId)
+        }
+    }
+
+    open fun removeAdbReverseBlocking(deviceId: String): Boolean {
+        return try {
+            val process = ProcessBuilder(
+                ADB_COMMAND, "-s", deviceId, "reverse", "--remove-all"
+            ).start()
+            process.waitFor(5, TimeUnit.SECONDS)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     fun getLogcatFlow(deviceId: String): Flow<LogcatMessage> = callbackFlow<LogcatMessage> {
         val process = ProcessBuilder(ADB_COMMAND, "-s", deviceId, "logcat", "-v", "threadtime").start()
         val job = launch(Dispatchers.IO) {

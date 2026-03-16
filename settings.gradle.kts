@@ -16,5 +16,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "LogMeow"
-include(":interceptor")
+include(":interceptor-core")
+include(":interceptor-okhttp")
+include(":interceptor-ktor")
 include(":interceptor-no-op")

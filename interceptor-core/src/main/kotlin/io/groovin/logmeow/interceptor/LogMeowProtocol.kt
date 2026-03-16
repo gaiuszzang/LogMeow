@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal sealed class LogMeowMessage
+sealed class LogMeowMessage
 
 // ── Client → Server ──
 
@@ -25,7 +25,7 @@ enum class ResponseType {
 
 @Serializable
 @SerialName("traffic")
-internal data class TrafficMessage(
+data class TrafficMessage(
     val method: String,
     val url: String,
     val statusCode: Int,

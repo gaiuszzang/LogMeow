@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
 
-internal object MockApiSettingsManager {
+object MockApiSettingsManager {
 
     private const val PREFS_NAME = "logmeow_mock_api_settings"
     private const val KEY_SETTINGS = "mock_settings"

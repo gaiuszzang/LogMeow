@@ -15,7 +15,7 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal object LogMeowClient {
+object LogMeowClient {
 
     private const val MAX_BUFFER_SIZE = 200
     private const val RECONNECT_DELAY_MS = 3_000L

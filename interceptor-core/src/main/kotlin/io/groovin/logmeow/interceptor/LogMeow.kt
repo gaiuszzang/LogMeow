@@ -20,7 +20,7 @@ object LogMeow {
     internal var mockSupportType: MockSupportType = MockSupportType.ALWAYS
     private val initialized = AtomicBoolean(false)
 
-    internal fun init(context: Context, port: Int, mockSupportType: MockSupportType) {
+    fun init(context: Context, port: Int = DEFAULT_PORT, mockSupportType: MockSupportType = MockSupportType.ALWAYS) {
         configuredPort = port
         this.mockSupportType = mockSupportType
         if (initialized.compareAndSet(false, true)) {

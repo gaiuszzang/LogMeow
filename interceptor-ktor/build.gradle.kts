@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "io.groovin.logmeow.interceptor.noop"
+    namespace = "io.groovin.logmeow.interceptor.ktor"
     compileSdk = 36
 
     defaultConfig {
@@ -33,7 +33,7 @@ kotlin {
 }
 
 dependencies {
-    compileOnly(libs.okhttp)
+    api(project(":interceptor-core"))
     compileOnly(libs.ktor.client.core)
 }
 
@@ -43,7 +43,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 groupId = "io.groovin"
-                artifactId = "logmeow-interceptor-no-op"
+                artifactId = "logmeow-interceptor-ktor"
                 version = "0.1.0-SNAPSHOT"
             }
         }

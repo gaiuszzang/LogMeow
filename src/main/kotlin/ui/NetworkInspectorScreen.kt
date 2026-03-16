@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -53,9 +52,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -65,7 +61,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import java.awt.Cursor
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
@@ -75,6 +70,7 @@ import network.data.ResponseType
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
+import ui.common.DragHandle
 import ui.common.DropDownButton
 import ui.common.LogMeowColors
 import vm.NetworkInspectorUiState
@@ -492,29 +488,6 @@ private fun TrafficItem(
     }
 }
 
-@Composable
-private fun DragHandle(
-    isVertical: Boolean,
-    onDrag: (Float) -> Unit
-) {
-    val cursor = if (isVertical) Cursor(Cursor.E_RESIZE_CURSOR) else Cursor(Cursor.N_RESIZE_CURSOR)
-    Box(
-        modifier = Modifier
-            .then(
-                if (isVertical) Modifier.width(6.dp).fillMaxHeight()
-                else Modifier.height(6.dp).fillMaxWidth()
-            )
-            .pointerHoverIcon(PointerIcon(cursor))
-            .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    val delta = if (isVertical) dragAmount.x else dragAmount.y
-                    onDrag(delta / density)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {}
-}
 
 @Composable
 private fun RequestDetailPanel(

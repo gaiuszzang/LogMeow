@@ -2,12 +2,11 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
     `maven-publish`
 }
 
 android {
-    namespace = "io.groovin.logmeow.interceptor"
+    namespace = "io.groovin.logmeow.interceptor.okhttp"
     compileSdk = 36
 
     defaultConfig {
@@ -34,9 +33,8 @@ kotlin {
 }
 
 dependencies {
+    api(project(":interceptor-core"))
     compileOnly(libs.okhttp)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.serialization.json)
 }
 
 afterEvaluate {
@@ -45,7 +43,7 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 groupId = "io.groovin"
-                artifactId = "logmeow-interceptor"
+                artifactId = "logmeow-interceptor-okhttp"
                 version = "0.1.0-SNAPSHOT"
             }
         }

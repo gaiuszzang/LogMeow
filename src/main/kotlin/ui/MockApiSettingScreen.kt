@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.defaultMinSize
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
@@ -32,10 +31,10 @@ import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.Divider
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
-import androidx.compose.material.OutlinedTextField
+
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.material.TextFieldDefaults
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,9 +52,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -63,9 +59,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
+
 import androidx.compose.ui.unit.sp
-import java.awt.Cursor
+
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
@@ -74,7 +70,9 @@ import network.data.MockApiSetting
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
+import ui.common.DragHandle
 import ui.common.LogMeowColors
+import ui.common.OutlinedSingleTextField
 import vm.MockApiDialogRequest
 import java.util.UUID
 
@@ -315,7 +313,8 @@ fun MockApiSettingScreen(
                     )
 
                     // Drag handle
-                    MockDragHandle(
+                    DragHandle(
+                        isVertical = true,
                         onDrag = { delta ->
                             if (totalWidth > 0) {
                                 val px = with(density) { delta.dp.toPx() }
@@ -567,7 +566,7 @@ private fun MockApiDetail(
                             enabled = isEditMode
                         )
                         Spacer(Modifier.width(8.dp))
-                        DarkTextField(
+                        OutlinedSingleTextField(
                             value = editUrl,
                             onValueChange = onEditUrlChange,
                             label = "URL *",
@@ -583,7 +582,7 @@ private fun MockApiDetail(
                     // Response Settings
                     Text("Response Settings", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    DarkTextField(
+                    OutlinedSingleTextField(
                         value = editStatusCode,
                         onValueChange = { onEditStatusCodeChange(it.filter { c -> c.isDigit() }) },
                         label = "Status Code",
@@ -592,7 +591,7 @@ private fun MockApiDetail(
                         readOnly = !isEditMode
                     )
                     Spacer(Modifier.height(8.dp))
-                    DarkTextField(
+                    OutlinedSingleTextField(
                         value = editDelayMs,
                         onValueChange = { onEditDelayMsChange(it.filter { c -> c.isDigit() }) },
                         label = "Additional Delay (ms)",
@@ -648,7 +647,7 @@ private fun MockApiDetail(
                     } else {
                         editResponseBody
                     }
-                    DarkTextField(
+                    OutlinedSingleTextField(
                         value = displayBody,
                         onValueChange = onEditResponseBodyChange,
                         label = "",
@@ -726,23 +725,6 @@ private fun MockApiDetail(
     }
 }
 
-@Composable
-private fun MockDragHandle(onDrag: (Float) -> Unit) {
-    val cursor = Cursor(Cursor.E_RESIZE_CURSOR)
-    Box(
-        modifier = Modifier
-            .width(6.dp)
-            .fillMaxHeight()
-            .pointerHoverIcon(PointerIcon(cursor))
-            .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    onDrag(dragAmount.x / density)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {}
-}
 
 @Composable
 private fun MethodDropdown(
@@ -803,7 +785,7 @@ private fun HeaderEditor(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
-                DarkTextField(
+                OutlinedSingleTextField(
                     value = key,
                     onValueChange = { newKey ->
                         onChange(headers.toMutableList().apply { set(index, newKey to value) })
@@ -814,7 +796,7 @@ private fun HeaderEditor(
                     readOnly = readOnly
                 )
                 Spacer(Modifier.width(4.dp))
-                DarkTextField(
+                OutlinedSingleTextField(
                     value = value,
                     onValueChange = { newValue ->
                         onChange(headers.toMutableList().apply { set(index, key to newValue) })
@@ -851,46 +833,6 @@ private fun HeaderEditor(
             )
         }
     }
-}
-
-@Composable
-private fun DarkTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    singleLine: Boolean = true,
-    isError: Boolean = false,
-    fontFamily: FontFamily? = null,
-    readOnly: Boolean = false
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = if (label.isNotEmpty()) {
-            { Text(label, fontSize = 11.sp) }
-        } else null,
-        modifier = modifier.defaultMinSize(minHeight = 40.dp),
-        singleLine = singleLine,
-        isError = isError,
-        readOnly = readOnly,
-        textStyle = androidx.compose.ui.text.TextStyle(
-            fontSize = 13.sp,
-            lineHeight = 1.5.em,
-            color = if (readOnly) Color.LightGray else Color.White,
-            fontFamily = fontFamily
-        ),
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            textColor = if (readOnly) Color.LightGray else Color.White,
-            cursorColor = LogMeowColors.Accent,
-            focusedBorderColor = if (readOnly) Color.DarkGray else LogMeowColors.Accent,
-            unfocusedBorderColor = Color.DarkGray,
-            errorBorderColor = LogMeowColors.Danger,
-            focusedLabelColor = if (readOnly) Color.Gray else LogMeowColors.Accent,
-            unfocusedLabelColor = Color.Gray,
-            backgroundColor = if (readOnly) LogMeowColors.PanelBackground else LogMeowColors.EditFieldBackground
-        )
-    )
 }
 
 private val prettyJson = kotlinx.serialization.json.Json { prettyPrint = true }

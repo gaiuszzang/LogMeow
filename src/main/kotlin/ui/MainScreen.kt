@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.common.AppTheme
+import ui.common.LogMeowColors
 import ui.common.DropDownButton
 import ui.common.SingleLineTextField
 import ui.common.IconButton
@@ -61,12 +62,14 @@ import ui.icons.NavigationIcon
 import ui.icons.PhoneIcon
 import ui.icons.PlayIcon
 import ui.icons.StopIcon
+import ui.icons.NetworkIcon
 import ui.icons.VideoIcon
 import org.koin.compose.koinInject
 import repository.MainRepository
 import vm.DeepLinkPopupViewModel
+import vm.DisplayMode
 import vm.MainViewModel
-import vm.SelectionMode
+import vm.NetworkInspectorViewModel
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 
@@ -80,6 +83,7 @@ fun MainScreen(
     val isLogging by viewModel.isLogging.collectAsState()
     val isScreenRecording by viewModel.isScreenRecording.collectAsState()
     val isDeepLinkPopupVisible by viewModel.isDeepLinkPopupVisible.collectAsState()
+    val isNetworkInspectorVisible by viewModel.isNetworkInspectorVisible.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
     var deviceListExpanded by remember { mutableStateOf(false) }
@@ -168,7 +172,7 @@ fun MainScreen(
                                     Text(
                                         text = device.state.name,
                                         color = when (device.state) {
-                                            AdbDeviceState.DEVICE -> Color(0xFF37943D) // Green
+                                            AdbDeviceState.DEVICE -> LogMeowColors.ServerRunning
                                             AdbDeviceState.OFFLINE -> Color.Red
                                             else -> Color.Gray
                                         },
@@ -226,6 +230,14 @@ fun MainScreen(
                     icon = PhoneIcon,
                     enabled = selectedDevice != null,
                     onClick = { viewModel.launchScrcpy() }
+                )
+                RowItemDivider()
+                // Network Inspector Button
+                IconButton(
+                    modifier = Modifier.size(36.dp),
+                    icon = NetworkIcon,
+                    enabled = selectedDevice != null,
+                    onClick = { viewModel.showNetworkInspector() }
                 )
             }
 
@@ -328,6 +340,9 @@ fun MainScreen(
                     onDragSelect = { id ->
                         viewModel.selectRangeLog(id)
                     },
+                    onKeyNavigate = { direction, extendSelection ->
+                        viewModel.selectAdjacentLog(direction, extendSelection)
+                    },
                     scrollToIndexFlow = viewModel.scrollToFilteredIndex
                 )
             }
@@ -340,15 +355,15 @@ fun MainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left side: Text Selection toggle button
-                val isTextSelectionMode = uiState.selectionMode == SelectionMode.Text
-                var isTextSelectionHovered by remember { mutableStateOf(false) }
+                // Left side: Display Mode toggle button
+                val isCompactMode = uiState.displayMode == DisplayMode.Compact
+                var isDisplayModeHovered by remember { mutableStateOf(false) }
                 Text(
                     modifier = Modifier
                         .background(
                             color = when {
-                                isTextSelectionMode -> Color(0xFF505050)
-                                isTextSelectionHovered -> Color(0xFF3A3A3A)
+                                isCompactMode -> LogMeowColors.TextSelectionBackground
+                                isDisplayModeHovered -> LogMeowColors.TextSelectionHoverBackground
                                 else -> Color.Transparent
                             },
                             shape = RoundedCornerShape(4.dp)
@@ -358,17 +373,17 @@ fun MainScreen(
                                 while (true) {
                                     val event = awaitPointerEvent()
                                     when (event.type) {
-                                        PointerEventType.Enter -> isTextSelectionHovered = true
-                                        PointerEventType.Exit -> isTextSelectionHovered = false
+                                        PointerEventType.Enter -> isDisplayModeHovered = true
+                                        PointerEventType.Exit -> isDisplayModeHovered = false
                                     }
                                 }
                             }
                         }
-                        .clickable { viewModel.toggleTextSelectionMode() }
+                        .clickable { viewModel.toggleDisplayMode() }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
-                    text = "Text Selection",
+                    text = if (isCompactMode) "Show Compact Mode" else "Show All Mode",
                     fontSize = 12.sp,
-                    color = if (isTextSelectionMode) Color.White else Color.Gray
+                    color = if (isCompactMode) Color.White else Color.Gray
                 )
 
                 // Right side: Bookmarks and LogSize
@@ -418,6 +433,19 @@ fun MainScreen(
                         DeepLinkPopupViewModel(viewModel.getAdbService(), currentDevice.id, mainRepository)
                     },
                     onDismiss = { viewModel.hideDeepLinkPopup() }
+                )
+            }
+        }
+
+        // Network Inspector Popup
+        if (isNetworkInspectorVisible) {
+            val currentDevice = selectedDevice
+            if (currentDevice != null) {
+                NetworkInspectorScreen(
+                    viewModel = remember(currentDevice.id) {
+                        NetworkInspectorViewModel(viewModel.getAdbService(), currentDevice.id)
+                    },
+                    onDismiss = { viewModel.hideNetworkInspector() }
                 )
             }
         }

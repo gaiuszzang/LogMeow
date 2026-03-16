@@ -1,10 +1,12 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.serialization")
-    id("org.jetbrains.compose")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
 }
 
 group = "io.groovin.logmeow"
@@ -20,18 +22,18 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing")
-    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-
-    // Koin for Dependency Injection
-    val koinVersion = "3.5.6"
-    implementation("io.insert-koin:koin-core:$koinVersion")
-    implementation("io.insert-koin:koin-compose:1.1.5") // koin-compose has its own versioning
+    implementation(libs.kotlinx.coroutines.swing)
+    implementation(libs.kotlinx.collections.immutable)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.koin.core)
+    implementation(libs.koin.compose)
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
 }
 
 compose.desktop {
@@ -45,13 +47,8 @@ compose.desktop {
 
             macOS {
                 iconFile.set(project.file("src/main/resources/logmeow.icns"))
+                jvmArgs("-Dapple.awt.application.appearance=NSAppearanceNameDarkAqua")
 
-                // 다크 모드 + 환경변수 전달
-                jvmArgs(
-                    "-Dapple.awt.application.appearance=NSAppearanceNameDarkAqua"
-                )
-
-                // ANDROID_HOME 환경변수 전달 (옵션)
                 val androidHome = System.getenv("ANDROID_HOME")
                 if (androidHome != null) {
                     jvmArgs("-DANDROID_HOME=$androidHome")

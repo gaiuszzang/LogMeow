@@ -3,6 +3,9 @@ package ui
 import adb.data.LogcatMessage
 import adb.data.LogLevel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -12,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -21,11 +23,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
@@ -41,7 +54,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ui.common.LazyListScrollBar
-import vm.SelectionMode
+import ui.common.LogMeowColors
+import vm.DisplayMode
 import vm.UiState
 
 @Composable
@@ -50,18 +64,22 @@ fun LogCatView(
     onLogClick: (id: Long, isShift: Boolean, isAlt: Boolean) -> Unit,
     onLogDoubleClick: (id: Long) -> Unit = {},
     onDragSelect: (id: Long) -> Unit = {},
+    onKeyNavigate: (direction: Int, extendSelection: Boolean) -> Int? = { _, _ -> null },
     scrollToIndexFlow: kotlinx.coroutines.flow.Flow<Int>? = null // TODO m.c.shin 개선 필요
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs
-    val isLogItemMode = uiState.selectionMode == SelectionMode.LogItem
+    val isCompact = uiState.displayMode == DisplayMode.Compact
     var isDragging by remember { mutableStateOf(false) }
     var dragMouseY by remember { mutableFloatStateOf(0f) }
     var containerHeight by remember { mutableFloatStateOf(0f) }
+    val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    // Auto-scroll to the bottom when a new log is added (only in LogItem mode)
+    // Auto-scroll to the bottom when a new log is added
     LaunchedEffect(filteredLogs.size) {
-        if (isLogItemMode && filteredLogs.isNotEmpty()) {
+        if (filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
         }
     }
@@ -75,9 +93,9 @@ fun LogCatView(
         }
     }
 
-    // Auto-scroll while dragging outside the list bounds (only in LogItem mode)
-    LaunchedEffect(isDragging, dragMouseY, containerHeight, isLogItemMode) {
-        if (!isDragging || !isLogItemMode) return@LaunchedEffect
+    // Auto-scroll while dragging outside the list bounds
+    LaunchedEffect(isDragging, dragMouseY, containerHeight) {
+        if (!isDragging) return@LaunchedEffect
 
         while (isDragging) {
             val scrollAmount = when {
@@ -109,7 +127,9 @@ fun LogCatView(
 
     if (filteredLogs.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(LogMeowColors.PanelBackground),
             contentAlignment = Alignment.Center
         ) {
             Text("Logs will appear here...", fontSize = 12.sp)
@@ -118,81 +138,113 @@ fun LogCatView(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(LogMeowColors.PanelBackground)
+                .focusRequester(focusRequester)
+                .onFocusChanged { isFocused = it.hasFocus }
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    val isShift = event.isShiftPressed
+                    when (event.key) {
+                        Key.DirectionUp -> {
+                            val targetIndex = onKeyNavigate(-1, isShift)
+                            if (targetIndex != null) {
+                                coroutineScope.launch {
+                                    val firstVisible = listState.firstVisibleItemIndex
+                                    if (targetIndex < firstVisible) {
+                                        listState.animateScrollToItem(targetIndex)
+                                    }
+                                }
+                            }
+                            true
+                        }
+                        Key.DirectionDown -> {
+                            val targetIndex = onKeyNavigate(1, isShift)
+                            if (targetIndex != null) {
+                                coroutineScope.launch {
+                                    val layoutInfo = listState.layoutInfo
+                                    val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                                    val isOutOfView = lastVisible == null || targetIndex > lastVisible.index ||
+                                        (targetIndex == lastVisible.index &&
+                                            lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
+                                    if (isOutOfView) {
+                                        // Scroll so the target item appears at the bottom
+                                        val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+                                        val avgItemSize = layoutInfo.visibleItemsInfo.map { it.size }.average().toInt()
+                                        val itemsPerPage = if (avgItemSize > 0) viewportHeight / avgItemSize else 1
+                                        val scrollTo = (targetIndex - itemsPerPage + 1).coerceAtLeast(0)
+                                        listState.animateScrollToItem(scrollTo)
+                                    }
+                                }
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { focusRequester.requestFocus() }
                 .padding(horizontal = 4.dp, vertical = 4.dp)
         ) {
-            val lazyColumnContent: @Composable () -> Unit = {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(end = 12.dp)
-                        .then(
-                            if (isLogItemMode) {
-                                Modifier.pointerInput(filteredLogs) {
-                                    containerHeight = size.height.toFloat()
-                                    awaitPointerEventScope {
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            when (event.type) {
-                                                PointerEventType.Press -> {
-                                                    val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                                                    isDragging = !isAlt
-                                                }
-                                                PointerEventType.Release -> {
-                                                    isDragging = false
-                                                }
-                                                PointerEventType.Move -> {
-                                                    if (isDragging && event.buttons.isPrimaryPressed) {
-                                                        val y = event.changes.firstOrNull()?.position?.y ?: 0f
-                                                        dragMouseY = y
-                                                        // Find the item at the current Y position
-                                                        val layoutInfo = listState.layoutInfo
-                                                        for (itemInfo in layoutInfo.visibleItemsInfo) {
-                                                            if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
-                                                                val index = itemInfo.index
-                                                                if (index in filteredLogs.indices) {
-                                                                    onDragSelect(filteredLogs[index].id)
-                                                                }
-                                                                break
-                                                            }
-                                                        }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = 12.dp)
+                    .pointerInput(filteredLogs) {
+                        containerHeight = size.height.toFloat()
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                when (event.type) {
+                                    PointerEventType.Press -> {
+                                        val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                        isDragging = !isAlt
+                                    }
+                                    PointerEventType.Release -> {
+                                        isDragging = false
+                                    }
+                                    PointerEventType.Move -> {
+                                        if (isDragging && event.buttons.isPrimaryPressed) {
+                                            val y = event.changes.firstOrNull()?.position?.y ?: 0f
+                                            dragMouseY = y
+                                            // Find the item at the current Y position
+                                            val layoutInfo = listState.layoutInfo
+                                            for (itemInfo in layoutInfo.visibleItemsInfo) {
+                                                if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
+                                                    val index = itemInfo.index
+                                                    if (index in filteredLogs.indices) {
+                                                        onDragSelect(filteredLogs[index].id)
                                                     }
+                                                    break
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            } else {
-                                Modifier
                             }
-                        )
-                    ,
-                    userScrollEnabled = isLogItemMode // Disable scroll in Text Selection mode
-                ) {
-                    items(filteredLogs.size) { index ->
-                        val log = filteredLogs[index]
-                        LogRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            log = log,
-                            filterTag = uiState.filterTag,
-                            filterMessage = uiState.filterMessage,
-                            isLogItemMode = isLogItemMode,
-                            onLogClick = { isShift, isAlt ->
-                                onLogClick(log.id, isShift, isAlt)
-                            },
-                            onLogDoubleClick = {
-                                onLogDoubleClick(log.id)
-                            }
-                        )
+                        }
                     }
-                }
-            }
-
-            if (isLogItemMode) {
-                lazyColumnContent()
-            } else {
-                SelectionContainer {
-                    lazyColumnContent()
+            ) {
+                items(filteredLogs.size) { index ->
+                    val log = filteredLogs[index]
+                    LogRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        log = log,
+                        filterTag = uiState.filterTag,
+                        filterMessage = uiState.filterMessage,
+                        isCompact = isCompact,
+                        isListFocused = isFocused,
+                        onLogClick = { isShift, isAlt ->
+                            onLogClick(log.id, isShift, isAlt)
+                            focusRequester.requestFocus()
+                        },
+                        onLogDoubleClick = {
+                            onLogDoubleClick(log.id)
+                        }
+                    )
                 }
             }
             LazyListScrollBar(
@@ -214,7 +266,8 @@ private fun LogRow(
     log: LogcatMessage,
     filterTag: String?,
     filterMessage: String?,
-    isLogItemMode: Boolean,
+    isCompact: Boolean,
+    isListFocused: Boolean = false,
     onLogClick: (isShift: Boolean, isAlt: Boolean) -> Unit,
     onLogDoubleClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -231,64 +284,73 @@ private fun LogRow(
     }
 
     val rowBackgroundColor = when {
-        log.isSelected && log.isBookmarked -> Color(0xFF5C4A1A) // Selected + bookmarked: darker gold tint
-        log.isSelected -> Color(0xFF4A4A4A)
-        log.isBookmarked && isHovered -> Color(0xFF4A3D15) // Bookmarked + hovered
-        log.isBookmarked -> Color(0xFF3D3312) // Bookmarked: visible gold/brown tint
-        isHovered -> Color(0xFF3A3A3A)
-        else -> MaterialTheme.colors.surface
+        log.isSelected && log.isBookmarked && isListFocused -> Color(0xFF4A3D2A)
+        log.isSelected && log.isBookmarked -> Color(0xFF5C4A1A)
+        log.isSelected && isListFocused -> LogMeowColors.SelectedFocused
+        log.isSelected -> LogMeowColors.SelectedUnfocused
+        log.isBookmarked && isHovered -> Color(0xFF4A3D15)
+        log.isBookmarked -> Color(0xFF3D3312)
+        isHovered -> LogMeowColors.TextSelectionHoverBackground
+        else -> LogMeowColors.PanelBackground
     }
 
     Row(
         modifier = modifier
             .background(rowBackgroundColor)
-            .then(
-                if (isLogItemMode) {
-                    Modifier.pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                when (event.type) {
-                                    PointerEventType.Press -> {
-                                        val now = System.currentTimeMillis()
-                                        if (now - lastClickTime < 300) {
-                                            onLogDoubleClick()
-                                        } else {
-                                            val isShift = event.keyboardModifiers.isShiftPressed
-                                            val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                                            onLogClick(isShift, isAlt)
-                                        }
-                                        lastClickTime = now
-                                    }
-                                    PointerEventType.Enter -> {
-                                        isHovered = true
-                                    }
-                                    PointerEventType.Exit -> {
-                                        isHovered = false
-                                    }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Press -> {
+                                val now = System.currentTimeMillis()
+                                if (now - lastClickTime < 300) {
+                                    onLogDoubleClick()
+                                } else {
+                                    val isShift = event.keyboardModifiers.isShiftPressed
+                                    val isAlt = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                                    onLogClick(isShift, isAlt)
                                 }
+                                lastClickTime = now
+                            }
+                            PointerEventType.Enter -> {
+                                isHovered = true
+                            }
+                            PointerEventType.Exit -> {
+                                isHovered = false
                             }
                         }
                     }
-                } else {
-                    Modifier
                 }
-            )
+            }
             .padding(vertical = 4.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.Top
     ) {
-        LogRowContent(log, filterTag, filterMessage, logColor)
+        if (isCompact) {
+            CompactLogRowContent(log, filterMessage, logColor)
+        } else {
+            FullLogRowContent(log, filterTag, filterMessage, logColor)
+        }
     }
 }
 
 @Composable
-private fun RowScope.LogRowContent(
+private fun RowScope.CompactLogRowContent(
+    log: LogcatMessage,
+    filterMessage: String?,
+    logColor: Color
+) {
+    MessageText(log.message, filterMessage, logColor, Modifier.weight(1f))
+}
+
+@Composable
+private fun RowScope.FullLogRowContent(
     log: LogcatMessage,
     filterTag: String?,
     filterMessage: String?,
     logColor: Color
 ) {
-    // Timestamp - fixed width 180dp
+    // Timestamp
     Text(
         text = log.timestamp,
         color = Color.Gray,
@@ -300,7 +362,7 @@ private fun RowScope.LogRowContent(
         modifier = Modifier.width(180.dp)
     )
 
-    // Level - fixed width 30dp
+    // Level
     Text(
         text = log.level.name.first().toString(),
         color = logColor,
@@ -310,7 +372,7 @@ private fun RowScope.LogRowContent(
         modifier = Modifier.width(30.dp)
     )
 
-    // PID - fixed width 60dp
+    // PID
     Text(
         text = log.pid.toString(),
         color = Color.Gray,
@@ -323,7 +385,7 @@ private fun RowScope.LogRowContent(
         modifier = Modifier.width(50.dp)
     )
 
-    // TID - fixed width 60dp
+    // TID
     Text(
         text = log.tid.toString(),
         color = Color.Gray,
@@ -336,39 +398,11 @@ private fun RowScope.LogRowContent(
         modifier = Modifier.width(50.dp)
     )
 
-    // Tag - fixed width 220dp with highlighting
+    // Tag
     Box(modifier = Modifier.width(220.dp)) {
         if (!filterTag.isNullOrBlank()) {
             Text(
-                text = buildAnnotatedString {
-                    var currentIndex = 0
-                    val tag = log.tag
-                    val lowerTag = tag.lowercase()
-                    val lowerFilter = filterTag.lowercase()
-
-                    while (currentIndex < tag.length) {
-                        val matchIndex = lowerTag.indexOf(lowerFilter, currentIndex)
-                        if (matchIndex == -1) {
-                            withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
-                                append(tag.substring(currentIndex))
-                            }
-                            break
-                        } else {
-                            if (matchIndex > currentIndex) {
-                                withStyle(style = SpanStyle(color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f))) {
-                                    append(tag.substring(currentIndex, matchIndex))
-                                }
-                            }
-                            withStyle(style = SpanStyle(
-                                color = MaterialTheme.colors.surface,
-                                background = Color.Yellow
-                            )) {
-                                append(tag.substring(matchIndex, matchIndex + filterTag.length))
-                            }
-                            currentIndex = matchIndex + filterTag.length
-                        }
-                    }
-                },
+                text = buildHighlightedText(log.tag, filterTag, MaterialTheme.colors.onSurface.copy(alpha = 0.8f)),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
@@ -390,49 +424,66 @@ private fun RowScope.LogRowContent(
         }
     }
 
-    // Message - fills remaining space with highlighting
+    // Message
+    MessageText(log.message, filterMessage, logColor, Modifier.weight(1f))
+}
+
+@Composable
+private fun MessageText(
+    message: String,
+    filterMessage: String?,
+    logColor: Color,
+    modifier: Modifier
+) {
     if (!filterMessage.isNullOrBlank()) {
         Text(
-            text = buildAnnotatedString {
-                var currentIndex = 0
-                val message = log.message
-                val lowerMessage = message.lowercase()
-                val lowerFilter = filterMessage.lowercase()
-
-                while (currentIndex < message.length) {
-                    val matchIndex = lowerMessage.indexOf(lowerFilter, currentIndex)
-                    if (matchIndex == -1) {
-                        withStyle(style = SpanStyle(color = logColor)) {
-                            append(message.substring(currentIndex))
-                        }
-                        break
-                    } else {
-                        if (matchIndex > currentIndex) {
-                            withStyle(style = SpanStyle(color = logColor)) {
-                                append(message.substring(currentIndex, matchIndex))
-                            }
-                        }
-                        withStyle(style = SpanStyle(
-                            color = MaterialTheme.colors.surface,
-                            background = Color.Yellow
-                        )) {
-                            append(message.substring(matchIndex, matchIndex + filterMessage.length))
-                        }
-                        currentIndex = matchIndex + filterMessage.length
-                    }
-                }
-            },
+            text = buildHighlightedText(message, filterMessage, logColor),
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier.weight(1f)
+            modifier = modifier
         )
     } else {
         Text(
-            text = log.message,
+            text = message,
             color = logColor,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier.weight(1f)
+            modifier = modifier
         )
+    }
+}
+
+@Composable
+private fun buildHighlightedText(
+    text: String,
+    filter: String,
+    baseColor: Color
+) = buildAnnotatedString {
+    val surfaceColor = MaterialTheme.colors.surface
+    var currentIndex = 0
+    val lowerText = text.lowercase()
+    val lowerFilter = filter.lowercase()
+
+    while (currentIndex < text.length) {
+        val matchIndex = lowerText.indexOf(lowerFilter, currentIndex)
+        if (matchIndex == -1) {
+            withStyle(style = SpanStyle(color = baseColor)) {
+                append(text.substring(currentIndex))
+            }
+            break
+        } else {
+            if (matchIndex > currentIndex) {
+                withStyle(style = SpanStyle(color = baseColor)) {
+                    append(text.substring(currentIndex, matchIndex))
+                }
+            }
+            withStyle(style = SpanStyle(
+                color = surfaceColor,
+                background = Color.Yellow
+            )) {
+                append(text.substring(matchIndex, matchIndex + filter.length))
+            }
+            currentIndex = matchIndex + filter.length
+        }
     }
 }

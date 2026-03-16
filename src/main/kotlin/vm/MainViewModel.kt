@@ -24,9 +24,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
-enum class SelectionMode {
-    LogItem,
-    Text
+enum class DisplayMode {
+    All,
+    Compact
 }
 
 data class UiState(
@@ -35,11 +35,12 @@ data class UiState(
     val filterTag: String? = null,
     val filterMessage: String? = null,
     val focusLogIndex: Int? = null,
+    val shiftCursorFilteredIndex: Int? = null,
     val filteredLogs: ImmutableList<LogcatMessage> = persistentListOf(),
     val allLogCount: Int = 0,
     val bookmarkCount: Int = 0,
     val bookmarkedIndicesInFilteredLogs: ImmutableList<Int> = persistentListOf(),
-    val selectionMode: SelectionMode = SelectionMode.LogItem
+    val displayMode: DisplayMode = DisplayMode.All
 )
 
 class MainViewModel(
@@ -67,6 +68,10 @@ class MainViewModel(
     // DeepLink popup state
     private val _isDeepLinkPopupVisible = MutableStateFlow(false)
     val isDeepLinkPopupVisible = _isDeepLinkPopupVisible.asStateFlow()
+
+    // Network Inspector popup state
+    private val _isNetworkInspectorVisible = MutableStateFlow(false)
+    val isNetworkInspectorVisible = _isNetworkInspectorVisible.asStateFlow()
 
     // Logcat messages state (private - only managed internally)
     private var allLogs = mutableListOf<LogcatMessage>()
@@ -188,6 +193,14 @@ class MainViewModel(
 
     fun hideDeepLinkPopup() {
         _isDeepLinkPopupVisible.value = false
+    }
+
+    fun showNetworkInspector() {
+        _isNetworkInspectorVisible.value = true
+    }
+
+    fun hideNetworkInspector() {
+        _isNetworkInspectorVisible.value = false
     }
 
     fun getAdbService(): AdbService = adbService
@@ -324,8 +337,8 @@ class MainViewModel(
             for (i in allLogs.indices) {
                 allLogs[i] = allLogs[i].copy(isSelected = i == index)
             }
-            // Update focus index
-            _uiState.value = _uiState.value.copy(focusLogIndex = index)
+            // Update focus index and reset shift cursor
+            _uiState.value = _uiState.value.copy(focusLogIndex = index, shiftCursorFilteredIndex = null)
             updateFilteredLogs()
         }
     }
@@ -354,6 +367,7 @@ class MainViewModel(
                 }
             }
 
+            _uiState.value = _uiState.value.copy(shiftCursorFilteredIndex = null)
             updateFilteredLogs()
         } else {
             // If focusLogIndex is not valid, just select the clicked item
@@ -365,18 +379,78 @@ class MainViewModel(
         val index = allLogs.indexOfFirst { it.id == id }
         if (index != -1) {
             allLogs[index] = allLogs[index].copy(isSelected = !allLogs[index].isSelected)
-            // Update focus index
-            _uiState.value = _uiState.value.copy(focusLogIndex = index)
+            // Update focus index and reset shift cursor
+            _uiState.value = _uiState.value.copy(focusLogIndex = index, shiftCursorFilteredIndex = null)
             updateFilteredLogs()
         }
     }
 
-    //TODO Refactoring
+    /**
+     * Move selection to the adjacent log in filtered list.
+     * @param direction -1 for up, 1 for down
+     * @param extendSelection if true, select range from anchor (focusLogIndex) to moving cursor
+     * @return the target filtered index for scrolling, or null if no move
+     */
+    fun selectAdjacentLog(direction: Int, extendSelection: Boolean = false): Int? {
+        val filteredLogs = _uiState.value.filteredLogs
+        if (filteredLogs.isEmpty()) return null
+
+        if (extendSelection) {
+            // Range selection from anchor point
+            val anchorAllIndex = _uiState.value.focusLogIndex ?: return null
+            val anchorFilteredIndex = filteredLogs.indexOfFirst { it.id == allLogs.getOrNull(anchorAllIndex)?.id }
+            if (anchorFilteredIndex == -1) return null
+
+            // Determine current cursor position, or start from anchor
+            val currentCursor = _uiState.value.shiftCursorFilteredIndex ?: anchorFilteredIndex
+            val newCursor = (currentCursor + direction).coerceIn(0, filteredLogs.size - 1)
+            if (newCursor == currentCursor) return null
+
+            // Select range between anchor and new cursor in allLogs
+            val anchorAll = anchorAllIndex
+            val cursorAllIndex = allLogs.indexOfFirst { it.id == filteredLogs[newCursor].id }
+            if (cursorAllIndex == -1) return null
+
+            val start = minOf(anchorAll, cursorAllIndex)
+            val end = maxOf(anchorAll, cursorAllIndex)
+
+            for (i in allLogs.indices) {
+                val shouldSelect = i in start..end && isLogMatchingFilter(allLogs[i])
+                allLogs[i] = allLogs[i].copy(isSelected = shouldSelect)
+            }
+
+            _uiState.value = _uiState.value.copy(shiftCursorFilteredIndex = newCursor)
+            updateFilteredLogs()
+            return newCursor
+        } else {
+            // Normal single selection
+            val currentFilteredIndex = if (direction < 0) {
+                filteredLogs.indexOfFirst { it.isSelected }
+            } else {
+                filteredLogs.indexOfLast { it.isSelected }
+            }
+            val targetIndex = if (currentFilteredIndex == -1) {
+                0
+            } else {
+                (currentFilteredIndex + direction).coerceIn(0, filteredLogs.size - 1)
+            }
+            if (targetIndex == currentFilteredIndex) return null
+
+            selectSingleLog(filteredLogs[targetIndex].id)
+            return targetIndex
+        }
+    }
+
     fun getSelectedLogsAsText(): String {
+        val isCompact = _uiState.value.displayMode == DisplayMode.Compact
         return allLogs
             .filter { it.isSelected }
             .joinToString("\n") { log ->
-                "${log.timestamp} ${log.level.name.first()} ${log.pid} ${log.tid} ${log.tag} ${log.message}"
+                if (isCompact) {
+                    log.message
+                } else {
+                    "${log.timestamp}\t${log.level.name.first()}\t${log.pid}\t${log.tid}\t${log.tag}\t${log.message}"
+                }
             }
     }
 
@@ -433,21 +507,10 @@ class MainViewModel(
         _scrollToFilteredIndex.tryEmit(target)
     }
 
-    fun toggleTextSelectionMode() {
-        val currentMode = _uiState.value.selectionMode
-        val newMode = if (currentMode == SelectionMode.LogItem) SelectionMode.Text else SelectionMode.LogItem
-
-        // When switching to Text mode, deselect all logs
-        if (newMode == SelectionMode.Text) {
-            for (i in allLogs.indices) {
-                if (allLogs[i].isSelected) {
-                    allLogs[i] = allLogs[i].copy(isSelected = false)
-                }
-            }
-        }
-
-        _uiState.value = _uiState.value.copy(selectionMode = newMode)
-        updateFilteredLogs()
+    fun toggleDisplayMode() {
+        val current = _uiState.value.displayMode
+        val newMode = if (current == DisplayMode.All) DisplayMode.Compact else DisplayMode.All
+        _uiState.value = _uiState.value.copy(displayMode = newMode)
     }
 
     @Suppress("unused")

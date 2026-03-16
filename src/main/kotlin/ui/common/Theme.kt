@@ -36,7 +36,7 @@ fun AppTheme(content: @Composable () -> Unit) {
             secondaryVariant = Color.Green,
             background = Color(0xff3c3e40),
             onBackground = Color.LightGray,
-            surface = Color(0xff2b2b2b),
+            surface = LogMeowColors.DarkBackground,
             onSurface = Color.LightGray,
             error = Color.Red,
             onError = Color.LightGray,

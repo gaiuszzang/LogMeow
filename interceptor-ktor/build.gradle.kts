@@ -39,9 +39,12 @@ dependencies {
 
 mavenPublishing {
     publishToMavenCentral()
-    signAllPublications()
+    // CI environment variable is automatically set by GitHub Actions
+    if (providers.environmentVariable("CI").isPresent) {
+        signAllPublications()
+    }
 
-    coordinates(publicationGroup, "logmeow-interceptor-ktor", publicationVersion)
+    coordinates(publicationGroup, "network-interceptor-ktor", publicationVersion)
 
     pom {
         name = "LogMeow Interceptor Ktor"

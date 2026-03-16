@@ -6,21 +6,11 @@ Android logcat viewer for Desktop (macOS, Windows, Linux)
 
 - **Logcat Viewer**: Real-time Android logcat monitoring with filtering
 - **Log Bookmark**: Bookmark important log lines for quick navigation
+- **Network Interceptor**: Inspect HTTP traffic from Android apps in real-time with mock API support
 - **Screenshot Capture**: Take device screenshots and save to local directory
 - **Screen Recording**: Record device screen to MP4 video
 - **DeepLink Execution**: Execute and manage deeplink history
 - **Scrcpy Integration**: Launch scrcpy for device mirroring and control
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+C` / `Ctrl+C` | Copy selected logs to clipboard |
-| `Cmd+B` / `Ctrl+B` | Toggle bookmark for selected logs |
-| `Click` | Select single log |
-| `Shift+Click` | Select range of logs |
-| `Cmd+Click` / `Ctrl+Click` | Toggle individual log selection |
-| `Right-Click` | Context menu (Add/Remove Bookmark)
 
 ## Requirements
 
@@ -67,6 +57,76 @@ sudo apt install scrcpy  # Debian/Ubuntu
 ```
 
 The application automatically searches for scrcpy in common installation paths.
+
+## Network Interceptor
+
+LogMeow includes a network interceptor library that captures HTTP traffic from your Android app and displays it in the desktop tool's Network Inspector.
+
+### Setup
+
+Add the dependency to your Android app:
+
+**OkHttp:**
+```kotlin
+// build.gradle.kts
+debugImplementation("io.groovin.logmeow:network-interceptor-okhttp:<version>")
+releaseImplementation("io.groovin.logmeow:network-interceptor-no-op:<version>")
+```
+
+**Ktor:**
+```kotlin
+// build.gradle.kts
+debugImplementation("io.groovin.logmeow:network-interceptor-ktor:<version>")
+releaseImplementation("io.groovin.logmeow:network-interceptor-no-op:<version>")
+```
+
+### Usage
+
+**OkHttp:**
+```kotlin
+val client = OkHttpClient.Builder()
+    .addInterceptor(LogMeowInterceptor(context))
+    .build()
+```
+
+**Ktor:**
+```kotlin
+val client = HttpClient {
+    install(LogMeowPlugin) {
+        context = applicationContext
+    }
+}
+```
+
+### Configuration Options
+
+```kotlin
+// OkHttp
+LogMeowInterceptor(
+    context = context,
+    mockSupportType = MockSupportType.ALWAYS, // ALWAYS, CONNECTED_ONLY, DISABLED
+    port = LogMeow.DEFAULT_PORT               // default: 10087
+)
+
+// Ktor
+install(LogMeowPlugin) {
+    context = applicationContext
+    mockSupportType = MockSupportType.ALWAYS
+    port = LogMeow.DEFAULT_PORT
+}
+```
+
+### Port Forwarding
+
+LogMeow desktop app communicates with the Android device via ADB port forwarding. The app handles this automatically, but if you need manual setup:
+
+```bash
+adb forward tcp:10087 tcp:10087
+```
+
+### Mock API
+
+The Network Inspector includes a Mock API feature that lets you define mock responses for specific endpoints directly from the desktop tool. Mock settings are synced to the Android app in real-time.
 
 ## Build Guide
 
@@ -122,10 +182,16 @@ Output: `build/compose/binaries/main/app/`
 src/main/kotlin/
 ├── adb/              # ADB service and data models
 ├── di/               # Dependency injection
+├── network/          # Network interceptor server
 ├── ui/               # UI components
 │   ├── common/       # Common UI components
 │   └── icons/        # Custom icons
 └── vm/               # ViewModels
+
+interceptor-core/     # Shared interceptor logic (protocol, client, mock settings)
+interceptor-okhttp/   # OkHttp interceptor implementation
+interceptor-ktor/     # Ktor client plugin implementation
+interceptor-no-op/    # No-op implementation for release builds
 ```
 
 ### Technology Stack

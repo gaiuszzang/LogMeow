@@ -1,12 +1,19 @@
 package io.groovin.logmeow.interceptor
 
 import android.content.Context
+import io.ktor.client.HttpClient
+import io.ktor.client.call.HttpClientCall
 import io.ktor.client.plugins.api.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.util.*
+import io.ktor.util.date.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlin.coroutines.CoroutineContext
 
 class LogMeowKtorPluginConfig {
     lateinit var context: Context
@@ -28,13 +35,15 @@ private const val MAX_BODY_SIZE = 32_768
 
 val LogMeowPlugin = createClientPlugin("LogMeow", ::LogMeowKtorPluginConfig) {
     LogMeow.init(pluginConfig.context, pluginConfig.port, pluginConfig.mockSupportType)
+    val ktorClient = client
 
-    onRequest { request, content ->
-        request.attributes.put(StartTimeKey, System.currentTimeMillis())
-
-        val headers = request.headers.build().entries()
+    on(Send) { request ->
+        val startTime = System.currentTimeMillis()
+        val method = request.method.value
+        val url = request.url.buildString()
+        val reqHeaders = request.headers.build().entries()
             .associate { (key, values) -> key to values.joinToString(", ") }
-        val body = when (content) {
+        val body = when (val content = request.body) {
             is OutgoingContent.ByteArrayContent -> {
                 val ct = content.contentType
                 if (ct == null || ct.contentType in listOf("text", "application")) {
@@ -45,12 +54,30 @@ val LogMeowPlugin = createClientPlugin("LogMeow", ::LogMeowKtorPluginConfig) {
             }
             else -> null
         }
-        request.attributes.put(RequestInfoKey, RequestCaptureInfo(
-            method = request.method.value,
-            url = request.url.buildString(),
-            headers = headers,
-            body = body
-        ))
+
+        // Check for mock match
+        val mockSetting = MockApiSettingsManager.findMatch(method, url)
+        if (mockSetting != null) {
+            if (mockSetting.delayMs > 0) {
+                delay(mockSetting.delayMs)
+            }
+            val durationMs = System.currentTimeMillis() - startTime
+            LogMeowClient.enqueue(TrafficMessage(
+                method = method, url = url,
+                requestHeaders = reqHeaders, requestBody = body,
+                statusCode = mockSetting.statusCode,
+                durationMs = durationMs,
+                responseHeaders = mockSetting.responseHeaders,
+                responseBody = mockSetting.responseBody,
+                responseType = ResponseType.MOCK
+            ))
+            return@on createMockCall(ktorClient, request, mockSetting, startTime)
+        }
+
+        // Real request
+        request.attributes.put(StartTimeKey, startTime)
+        request.attributes.put(RequestInfoKey, RequestCaptureInfo(method, url, reqHeaders, body))
+        proceed(request)
     }
 
     onResponse { response ->
@@ -74,15 +101,47 @@ val LogMeowPlugin = createClientPlugin("LogMeow", ::LogMeowKtorPluginConfig) {
         }
 
         LogMeowClient.enqueue(TrafficMessage(
-            method = reqInfo.method,
-            url = reqInfo.url,
+            method = reqInfo.method, url = reqInfo.url,
             statusCode = response.status.value,
             durationMs = durationMs,
-            requestHeaders = reqInfo.headers,
-            requestBody = reqInfo.body,
-            responseHeaders = respHeaders,
-            responseBody = respBody,
+            requestHeaders = reqInfo.headers, requestBody = reqInfo.body,
+            responseHeaders = respHeaders, responseBody = respBody,
             responseType = ResponseType.REAL
         ))
     }
+}
+
+@OptIn(InternalAPI::class)
+private fun createMockCall(
+    client: HttpClient,
+    request: HttpRequestBuilder,
+    mockSetting: MockApiSettingDto,
+    startTime: Long
+): HttpClientCall {
+    val callJob = Job(client.coroutineContext[Job])
+    val callContext: CoroutineContext = client.coroutineContext + callJob
+
+    val responseHeaders = Headers.build {
+        mockSetting.responseHeaders.forEach { (k, v) -> append(k, v) }
+    }
+
+    val requestData = HttpRequestData(
+        url = Url(request.url.buildString()),
+        method = request.method,
+        headers = request.headers.build(),
+        body = request.body as? OutgoingContent ?: TextContent("", ContentType.Application.Json),
+        executionContext = callJob,
+        attributes = Attributes()
+    )
+
+    val responseData = HttpResponseData(
+        statusCode = HttpStatusCode.fromValue(mockSetting.statusCode),
+        requestTime = GMTDate(startTime),
+        headers = responseHeaders,
+        version = HttpProtocolVersion.HTTP_1_1,
+        body = ByteReadChannel((mockSetting.responseBody ?: "").toByteArray()),
+        callContext = callContext
+    )
+
+    return HttpClientCall(client, requestData, responseData)
 }

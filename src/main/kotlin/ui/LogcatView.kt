@@ -3,6 +3,7 @@ package ui
 import adb.data.LogcatMessage
 import adb.data.LogLevel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
@@ -174,6 +175,50 @@ fun LogCatView(
                                         val itemsPerPage = if (avgItemSize > 0) viewportHeight / avgItemSize else 1
                                         val scrollTo = (targetIndex - itemsPerPage + 1).coerceAtLeast(0)
                                         listState.animateScrollToItem(scrollTo)
+                                    }
+                                }
+                            }
+                            true
+                        }
+                        Key.MoveHome -> {
+                            val targetIndex = onKeyNavigate(-Int.MAX_VALUE, isShift)
+                            if (targetIndex != null) {
+                                coroutineScope.launch { listState.animateScrollToItem(0) }
+                            }
+                            true
+                        }
+                        Key.MoveEnd -> {
+                            val targetIndex = onKeyNavigate(Int.MAX_VALUE, isShift)
+                            if (targetIndex != null) {
+                                coroutineScope.launch { listState.animateScrollToItem(filteredLogs.size - 1) }
+                            }
+                            true
+                        }
+                        Key.PageUp -> {
+                            coroutineScope.launch {
+                                val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                listState.animateScrollBy(-viewportHeight.toFloat())
+                                val firstVisible = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+                                if (firstVisible != null) {
+                                    val currentIndex = filteredLogs.indexOfFirst { it.isSelected }
+                                    val targetIndex = firstVisible.index
+                                    if (currentIndex != -1 && targetIndex != currentIndex) {
+                                        onKeyNavigate(targetIndex - currentIndex, isShift)
+                                    }
+                                }
+                            }
+                            true
+                        }
+                        Key.PageDown -> {
+                            coroutineScope.launch {
+                                val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                listState.animateScrollBy(viewportHeight.toFloat())
+                                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                                if (lastVisible != null) {
+                                    val currentIndex = filteredLogs.indexOfLast { it.isSelected }
+                                    val targetIndex = lastVisible.index
+                                    if (currentIndex != -1 && targetIndex != currentIndex) {
+                                        onKeyNavigate(targetIndex - currentIndex, isShift)
                                     }
                                 }
                             }

@@ -2,6 +2,8 @@
 
 Android logcat viewer for Desktop (macOS, Windows, Linux)
 
+![LogMeow](.docs/logmeow-default.png)
+
 ## Features
 
 - **Logcat Viewer**: Real-time Android logcat monitoring with filtering
@@ -59,8 +61,11 @@ sudo apt install scrcpy  # Debian/Ubuntu
 The application automatically searches for scrcpy in common installation paths.
 
 ## Network Interceptor
+[![Maven Central](https://img.shields.io/maven-central/v/io.groovin.logmeow/network-interceptor-core)](https://central.sonatype.com/artifact/io.groovin.logmeow/network-interceptor-core)
 
 LogMeow includes a network interceptor library that captures HTTP traffic from your Android app and displays it in the desktop tool's Network Inspector.
+
+![Network Inspector](.docs/logmeow-interceptor.png)
 
 ### Setup
 
@@ -118,15 +123,17 @@ install(LogMeowPlugin) {
 
 ### Port Forwarding
 
-LogMeow desktop app communicates with the Android device via ADB port forwarding. The app handles this automatically, but if you need manual setup:
+LogMeow desktop app communicates with the Android device via ADB reverse port forwarding. The app handles this automatically, but if you need manual setup:
 
 ```bash
-adb forward tcp:10087 tcp:10087
+adb reverse tcp:10087 tcp:10087
 ```
 
 ### Mock API
 
 The Network Inspector includes a Mock API feature that lets you define mock responses for specific endpoints directly from the desktop tool. Mock settings are synced to the Android app in real-time.
+
+![Mock API Settings](.docs/logmeow-mock-api.png)
 
 ## Build Guide
 

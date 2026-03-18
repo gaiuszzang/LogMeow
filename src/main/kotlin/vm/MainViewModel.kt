@@ -551,6 +551,7 @@ class MainViewModel(
                 _devices.value = deviceList.toImmutableList()
                 // If the selected device is disconnected, deselect it
                 if (_selectedDevice.value != null && deviceList.none { it.id == _selectedDevice.value!!.id }) {
+                    _isNetworkInspectorVisible.value = false
                     selectDevice(_selectedDevice.value!!) // This will stop logging and deselect
                 }
                 // Auto-select the first device when no device is currently selected

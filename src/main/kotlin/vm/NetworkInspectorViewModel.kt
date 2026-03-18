@@ -48,7 +48,7 @@ class NetworkInspectorViewModel(
     val uiState = _uiState.asStateFlow()
 
     init {
-        service.startServer(deviceId)
+        viewModelScope.launch { service.startServer(deviceId) }
         observeService()
     }
 
@@ -193,7 +193,7 @@ class NetworkInspectorViewModel(
     }
 
     fun restartServer() {
-        service.startServer(deviceId)
+        viewModelScope.launch { service.startServer(deviceId) }
     }
 
     fun onCleared() {

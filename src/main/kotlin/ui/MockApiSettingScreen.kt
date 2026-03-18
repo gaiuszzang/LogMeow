@@ -2,6 +2,7 @@ package ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 
@@ -70,7 +71,9 @@ import network.data.MockApiSetting
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
+import ui.common.Direction
 import ui.common.DragHandle
+import ui.common.LazyListScrollBar
 import ui.common.LogMeowColors
 import ui.common.OutlinedSingleTextField
 import vm.MockApiDialogRequest
@@ -129,7 +132,7 @@ fun MockApiSettingScreen(
                 url = url,
                 statusCode = (dialogRequest.prefillStatusCode ?: 200).toString(),
                 headers = dialogRequest.prefillResponseHeaders.entries.map { it.key to it.value },
-                responseBody = dialogRequest.prefillResponseBody ?: "",
+                responseBody = tryFormatJson(dialogRequest.prefillResponseBody ?: ""),
                 delayMs = "0"
             )
         }
@@ -169,6 +172,7 @@ fun MockApiSettingScreen(
     }
 
     fun enterEditMode() {
+        editResponseBody = tryFormatJson(editResponseBody)
         isEditMode = true
         duplicateError = false
     }
@@ -385,12 +389,17 @@ private fun MockApiList(
             color = Color.White,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
                 .background(LogMeowColors.PanelBackground)
+        ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = 8.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { isFocused = it.hasFocus }
                 .focusable()
@@ -410,6 +419,28 @@ private fun MockApiList(
                                 val newIndex = selectedIndex + 1
                                 onSelect(newIndex)
                                 coroutineScope.launch { listState.animateScrollToItem(newIndex) }
+                            }
+                            true
+                        }
+                        Key.PageUp -> {
+                            coroutineScope.launch {
+                                val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                listState.animateScrollBy(-viewportHeight.toFloat())
+                                val firstVisible = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+                                if (firstVisible != null && firstVisible.index in settings.indices) {
+                                    onSelect(firstVisible.index)
+                                }
+                            }
+                            true
+                        }
+                        Key.PageDown -> {
+                            coroutineScope.launch {
+                                val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                listState.animateScrollBy(viewportHeight.toFloat())
+                                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                                if (lastVisible != null && lastVisible.index in settings.indices) {
+                                    onSelect(lastVisible.index)
+                                }
                             }
                             true
                         }
@@ -494,6 +525,14 @@ private fun MockApiList(
                     )
                 }
             }
+        }
+            LazyListScrollBar(
+                state = listState,
+                direction = Direction.Vertical,
+                thickness = 8.dp,
+                color = Color.Gray,
+                backgroundColor = Color.DarkGray,
+            )
         }
     }
 }
@@ -835,7 +874,10 @@ private fun HeaderEditor(
     }
 }
 
-private val prettyJson = kotlinx.serialization.json.Json { prettyPrint = true }
+private val prettyJson = kotlinx.serialization.json.Json {
+    prettyPrint = true
+    prettyPrintIndent = "  "
+}
 
 private fun tryFormatJson(raw: String): String {
     val trimmed = raw.trim()

@@ -2,6 +2,7 @@ package ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +68,8 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.launch
 import network.data.NetworkTrafficEntry
+import ui.common.Direction
+import ui.common.LazyListScrollBar
 import network.data.ResponseType
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
@@ -83,11 +87,12 @@ fun NetworkInspectorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.onCleared() }
+    }
+
     Window(
-        onCloseRequest = {
-            viewModel.onCleared()
-            onDismiss()
-        },
+        onCloseRequest = { onDismiss() },
         title = "Network Inspector",
         state = rememberWindowState(
             width = 1400.dp,
@@ -351,57 +356,92 @@ private fun TrafficList(
             color = Color.White,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
                 .background(LogMeowColors.PanelBackground)
-                .focusRequester(focusRequester)
-                .onFocusChanged { isFocused = it.hasFocus }
-                .focusable()
-                .onKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    val currentIndex = trafficList.indexOfFirst { it.id == selectedTraffic?.id }
-                    when (event.key) {
-                        Key.DirectionUp -> {
-                            if (currentIndex > 0) {
-                                val newIndex = currentIndex - 1
-                                onSelect(trafficList[newIndex])
-                                coroutineScope.launch { listState.animateScrollToItem(newIndex) }
-                            }
-                            true
-                        }
-                        Key.DirectionDown -> {
-                            if (currentIndex < trafficList.size - 1) {
-                                val newIndex = currentIndex + 1
-                                onSelect(trafficList[newIndex])
-                                coroutineScope.launch { listState.animateScrollToItem(newIndex) }
-                            }
-                            true
-                        }
-                        else -> false
-                    }
-                }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { focusRequester.requestFocus() }
         ) {
-            itemsIndexed(trafficList) { _, entry ->
-                TrafficItem(
-                    entry = entry,
-                    isSelected = selectedTraffic?.id == entry.id,
-                    isFocused = isFocused,
-                    onClick = {
-                        onSelect(entry)
-                        focusRequester.requestFocus()
-                    },
-                    onDelete = { onDeleteTraffic(entry) },
-                    onMockApi = { onMockApi(entry) },
-                    mockSupportEnabled = mockSupportEnabled
-                )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = 8.dp)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { isFocused = it.hasFocus }
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                        val currentIndex = trafficList.indexOfFirst { it.id == selectedTraffic?.id }
+                        when (event.key) {
+                            Key.DirectionUp -> {
+                                if (currentIndex > 0) {
+                                    val newIndex = currentIndex - 1
+                                    onSelect(trafficList[newIndex])
+                                    coroutineScope.launch { listState.animateScrollToItem(newIndex) }
+                                }
+                                true
+                            }
+                            Key.DirectionDown -> {
+                                if (currentIndex < trafficList.size - 1) {
+                                    val newIndex = currentIndex + 1
+                                    onSelect(trafficList[newIndex])
+                                    coroutineScope.launch { listState.animateScrollToItem(newIndex) }
+                                }
+                                true
+                            }
+                            Key.PageUp -> {
+                                coroutineScope.launch {
+                                    val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                    listState.animateScrollBy(-viewportHeight.toFloat())
+                                    val firstVisible = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+                                    if (firstVisible != null && firstVisible.index in trafficList.indices) {
+                                        onSelect(trafficList[firstVisible.index])
+                                    }
+                                }
+                                true
+                            }
+                            Key.PageDown -> {
+                                coroutineScope.launch {
+                                    val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                                    listState.animateScrollBy(viewportHeight.toFloat())
+                                    val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+                                    if (lastVisible != null && lastVisible.index in trafficList.indices) {
+                                        onSelect(trafficList[lastVisible.index])
+                                    }
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { focusRequester.requestFocus() }
+            ) {
+                itemsIndexed(trafficList) { _, entry ->
+                    TrafficItem(
+                        entry = entry,
+                        isSelected = selectedTraffic?.id == entry.id,
+                        isFocused = isFocused,
+                        onClick = {
+                            onSelect(entry)
+                            focusRequester.requestFocus()
+                        },
+                        onDelete = { onDeleteTraffic(entry) },
+                        onMockApi = { onMockApi(entry) },
+                        mockSupportEnabled = mockSupportEnabled
+                    )
+                }
             }
+            LazyListScrollBar(
+                state = listState,
+                direction = Direction.Vertical,
+                thickness = 8.dp,
+                color = Color.Gray,
+                backgroundColor = Color.DarkGray,
+            )
         }
     }
 }
@@ -740,7 +780,10 @@ private fun BodySection(body: String) {
     )
 }
 
-private val prettyJson = kotlinx.serialization.json.Json { prettyPrint = true }
+private val prettyJson = kotlinx.serialization.json.Json {
+    prettyPrint = true
+    prettyPrintIndent = "  "
+}
 
 private fun tryFormatJson(raw: String): String {
     val trimmed = raw.trim()

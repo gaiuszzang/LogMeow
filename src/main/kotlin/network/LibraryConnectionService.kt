@@ -73,7 +73,7 @@ class LibraryConnectionService(
     private val clientSockets = mutableListOf<Socket>()
     private val writerLock = Any()
 
-    fun startServer(deviceId: String) {
+    suspend fun startServer(deviceId: String) {
         stopServer()
         currentDeviceId = deviceId
         serverJob = scope.launch {
@@ -103,11 +103,18 @@ class LibraryConnectionService(
         }
     }
 
-    fun stopServer() {
-        serverJob?.cancel()
-        serverJob = null
-        try { serverSocket?.close() } catch (_: Exception) {}
+    suspend fun stopServer() {
+        withContext(Dispatchers.IO) {
+            try {
+                serverSocket?.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
         serverSocket = null
+        serverJob?.cancel()
+        serverJob?.join()
+        serverJob = null
         _isServerRunning.value = false
         _connectedApps.value = emptySet()
         synchronized(writerLock) {
@@ -187,7 +194,17 @@ class LibraryConnectionService(
     }
 
     fun onCleared() {
-        stopServer()
+        try { serverSocket?.close() } catch (_: Exception) {}
+        serverSocket = null
+        serverJob?.cancel()
+        serverJob = null
+        _isServerRunning.value = false
+        _connectedApps.value = emptySet()
+        synchronized(writerLock) {
+            clientWriters.clear()
+            clientSockets.forEach { try { it.close() } catch (_: Exception) {} }
+            clientSockets.clear()
+        }
         scope.cancel()
     }
 

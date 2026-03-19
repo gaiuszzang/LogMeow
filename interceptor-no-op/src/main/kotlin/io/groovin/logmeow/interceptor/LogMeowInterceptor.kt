@@ -11,5 +11,9 @@ class LogMeowInterceptor @JvmOverloads constructor(
     mockSupportType: MockSupportType = MockSupportType.ALWAYS,
     port: Int = LogMeow.DEFAULT_PORT
 ) : Interceptor {
+    init {
+        LogMeow.registerInitializer(NoOpLogMeowInitializer)
+        LogMeow.init(context, port, mockSupportType)
+    }
     override fun intercept(chain: Interceptor.Chain): Response = chain.proceed(chain.request())
 }

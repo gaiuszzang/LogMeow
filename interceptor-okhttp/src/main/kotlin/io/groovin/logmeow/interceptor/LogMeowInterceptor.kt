@@ -16,6 +16,7 @@ class LogMeowInterceptor @JvmOverloads constructor(
 ) : Interceptor {
 
     init {
+        LogMeow.registerInitializer(CoreLogMeowInitializer())
         LogMeow.init(context, port, mockSupportType)
     }
 

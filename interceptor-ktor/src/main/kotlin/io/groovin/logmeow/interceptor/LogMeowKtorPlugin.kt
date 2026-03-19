@@ -34,6 +34,7 @@ private data class RequestCaptureInfo(
 private const val MAX_BODY_SIZE = 32_768
 
 val LogMeowPlugin = createClientPlugin("LogMeow", ::LogMeowKtorPluginConfig) {
+    LogMeow.registerInitializer(CoreLogMeowInitializer())
     LogMeow.init(pluginConfig.context, pluginConfig.port, pluginConfig.mockSupportType)
     val ktorClient = client
 

@@ -6,7 +6,7 @@ plugins {
 }
 
 val publicationGroup = providers.gradleProperty("GROUP").get()
-val publicationVersion = providers.gradleProperty("VERSION_NAME").get()
+val publicationVersion = providers.gradleProperty("LIBRARY_VERSION").get()
 
 group = publicationGroup
 version = publicationVersion

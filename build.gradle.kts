@@ -9,8 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-group = "io.groovin.logmeow"
-version = "1.0-SNAPSHOT"
+group = providers.gradleProperty("GROUP").get()
 
 repositories {
     mavenCentral()
@@ -43,7 +42,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "LogMeow"
-            packageVersion = "1.1.2"
+            packageVersion = providers.gradleProperty("DESKTOP_APP_VERSION").get()
 
             macOS {
                 iconFile.set(project.file("src/main/resources/logmeow.icns"))

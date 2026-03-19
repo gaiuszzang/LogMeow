@@ -12,7 +12,7 @@ group = publicationGroup
 version = publicationVersion
 
 android {
-    namespace = "io.groovin.logmeow.interceptor.noop"
+    namespace = "io.groovin.logmeow.interceptor.api"
     compileSdk = 36
 
     defaultConfig {
@@ -32,12 +32,6 @@ kotlin {
     }
 }
 
-dependencies {
-    api(project(":interceptor-api"))
-    compileOnly(libs.okhttp)
-    compileOnly(libs.ktor.client.core)
-}
-
 mavenPublishing {
     publishToMavenCentral()
     // CI environment variable is automatically set by GitHub Actions
@@ -45,11 +39,11 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates(publicationGroup, "network-interceptor-no-op", publicationVersion)
+    coordinates(publicationGroup, "network-interceptor-api", publicationVersion)
 
     pom {
-        name = "LogMeow Interceptor No-Op"
-        description = "No-op implementation of LogMeow interceptor for release builds"
+        name = "LogMeow Interceptor API"
+        description = "Shared API contract for LogMeow network interceptor"
         url = "https://github.com/gaiuszzang/LogMeow"
         licenses {
             license {

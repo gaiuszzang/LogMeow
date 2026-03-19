@@ -203,8 +203,6 @@ class MainViewModel(
         _isNetworkInspectorVisible.value = false
     }
 
-    fun getAdbService(): AdbService = adbService
-
     private fun startScreenRecording() {
         val deviceId = _selectedDevice.value?.id ?: return
 

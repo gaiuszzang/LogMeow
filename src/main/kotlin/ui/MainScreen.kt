@@ -65,7 +65,7 @@ import ui.icons.StopIcon
 import ui.icons.NetworkIcon
 import ui.icons.VideoIcon
 import org.koin.compose.koinInject
-import repository.MainRepository
+import org.koin.core.parameter.parametersOf
 import vm.DeepLinkPopupViewModel
 import vm.DisplayMode
 import vm.MainViewModel
@@ -427,11 +427,11 @@ fun MainScreen(
         if (isDeepLinkPopupVisible) {
             val currentDevice = selectedDevice
             if (currentDevice != null) {
-                val mainRepository: MainRepository = koinInject()
+                val deepLinkViewModel: DeepLinkPopupViewModel = koinInject(
+                    parameters = { parametersOf(currentDevice.id) }
+                )
                 DeepLinkPopupScreen(
-                    viewModel = remember(currentDevice.id) {
-                        DeepLinkPopupViewModel(viewModel.getAdbService(), currentDevice.id, mainRepository)
-                    },
+                    viewModel = deepLinkViewModel,
                     onDismiss = { viewModel.hideDeepLinkPopup() }
                 )
             }
@@ -441,10 +441,11 @@ fun MainScreen(
         if (isNetworkInspectorVisible) {
             val currentDevice = selectedDevice
             if (currentDevice != null) {
+                val networkViewModel: NetworkInspectorViewModel = koinInject(
+                    parameters = { parametersOf(currentDevice.id) }
+                )
                 NetworkInspectorScreen(
-                    viewModel = remember(currentDevice.id) {
-                        NetworkInspectorViewModel(viewModel.getAdbService(), currentDevice.id)
-                    },
+                    viewModel = networkViewModel,
                     onDismiss = { viewModel.hideNetworkInspector() }
                 )
             }

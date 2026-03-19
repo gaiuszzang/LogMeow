@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
-import org.koin.compose.koinInject
 import ui.common.AppTheme
 import ui.common.IconButton
 import ui.common.SingleLineTextField
@@ -44,7 +43,7 @@ import vm.DeepLinkPopupViewModel
 
 @Composable
 fun DeepLinkPopupScreen(
-    viewModel: DeepLinkPopupViewModel = koinInject(),
+    viewModel: DeepLinkPopupViewModel,
     onDismiss: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()

@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
 }
 
@@ -38,13 +39,12 @@ dependencies {
 }
 
 mavenPublishing {
+    coordinates(publicationGroup, "network-interceptor-okhttp", publicationVersion)
     publishToMavenCentral()
     // CI environment variable is automatically set by GitHub Actions
     if (providers.environmentVariable("CI").isPresent) {
         signAllPublications()
     }
-
-    coordinates(publicationGroup, "network-interceptor-okhttp", publicationVersion)
 
     pom {
         name = "LogMeow Interceptor OkHttp"

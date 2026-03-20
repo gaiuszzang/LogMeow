@@ -13,10 +13,11 @@ Android logcat viewer for Desktop (macOS, Windows, Linux)
 - **Screen Recording**: Record device screen to MP4 video
 - **DeepLink Execution**: Execute and manage deeplink history
 - **Scrcpy Integration**: Launch scrcpy for device mirroring and control
+- **Theme Settings**: Switch between IslandsDark and DarkModern themes
 
 ## Requirements
 
-- JDK 17 or higher
+- JDK 21 or higher
 - Android SDK with ADB installed
 - scrcpy (optional, for device mirroring feature)
 
@@ -188,13 +189,17 @@ Output: `build/compose/binaries/main/app/`
 ```
 src/main/kotlin/
 ├── adb/              # ADB service and data models
+├── data/             # Data models (settings)
 ├── di/               # Dependency injection
 ├── network/          # Network interceptor server
+├── repository/       # Data persistence
 ├── ui/               # UI components
 │   ├── common/       # Common UI components
-│   └── icons/        # Custom icons
+│   ├── icons/        # Custom icons
+│   └── theme/        # Theme system
 └── vm/               # ViewModels
 
+interceptor-api/      # Shared API contract and DTOs
 interceptor-core/     # Shared interceptor logic (protocol, client, mock settings)
 interceptor-okhttp/   # OkHttp interceptor implementation
 interceptor-ktor/     # Ktor client plugin implementation

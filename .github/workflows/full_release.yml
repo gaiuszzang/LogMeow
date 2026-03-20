@@ -1,0 +1,164 @@
+name: Full Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-tag:
+    name: Check tag availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: Build tag name and check duplicate
+        shell: bash
+        run: |
+          DESKTOP_VERSION="$(sed -n 's/^DESKTOP_APP_VERSION=//p' gradle.properties)"
+          LIBRARY_VERSION="$(sed -n 's/^LIBRARY_VERSION=//p' gradle.properties)"
+          TAG_NAME="${DESKTOP_VERSION}-${LIBRARY_VERSION}"
+          echo "Checking tag: ${TAG_NAME}"
+          if git rev-parse "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            echo "::error::Tag '${TAG_NAME}' already exists. Please update versions in gradle.properties."
+            exit 1
+          fi
+          echo "Tag '${TAG_NAME}' is available."
+
+  build-dmg:
+    name: Build macOS DMG (Apple Silicon)
+    needs: check-tag
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build DMG
+        run: ./gradlew packageDmg --stacktrace
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LogMeow-dmg
+          path: build/compose/binaries/main/dmg/*.dmg
+
+  publish-library:
+    name: Publish to Maven Central
+    needs: check-tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Validate release secrets
+        shell: bash
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_IN_MEMORY_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          SIGNING_IN_MEMORY_KEY_PASSWORD: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: |
+          for name in MAVEN_CENTRAL_USERNAME MAVEN_CENTRAL_PASSWORD SIGNING_IN_MEMORY_KEY SIGNING_IN_MEMORY_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Show publication version
+        shell: bash
+        run: |
+          VERSION_NAME="$(sed -n 's/^LIBRARY_VERSION=//p' gradle.properties)"
+          GROUP_ID="$(sed -n 's/^GROUP=//p' gradle.properties)"
+          echo "Publishing ${GROUP_ID}:logmeow-interceptor-*:${VERSION_NAME}"
+
+      - name: Publish and release
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: |
+          ./gradlew \
+            :interceptor-api:publishAndReleaseToMavenCentral \
+            :interceptor-core:publishAndReleaseToMavenCentral \
+            :interceptor-okhttp:publishAndReleaseToMavenCentral \
+            :interceptor-ktor:publishAndReleaseToMavenCentral \
+            :interceptor-no-op:publishAndReleaseToMavenCentral \
+            --stacktrace
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-dmg, publish-library]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read versions and build tag
+        id: versions
+        shell: bash
+        run: |
+          DESKTOP_VERSION="$(sed -n 's/^DESKTOP_APP_VERSION=//p' gradle.properties)"
+          LIBRARY_VERSION="$(sed -n 's/^LIBRARY_VERSION=//p' gradle.properties)"
+          TAG_NAME="${DESKTOP_VERSION}-${LIBRARY_VERSION}"
+          echo "desktop_version=${DESKTOP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "library_version=${LIBRARY_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG_NAME}"
+
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: LogMeow-dmg
+          path: dmg
+
+      - name: Create tag and GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versions.outputs.tag_name }}
+          name: ${{ steps.versions.outputs.tag_name }}
+          body: |
+            ## LogMeow ${{ steps.versions.outputs.tag_name }}
+
+            - Desktop App: v${{ steps.versions.outputs.desktop_version }}
+            - Interceptor Library: v${{ steps.versions.outputs.library_version }}
+          files: dmg/*.dmg
+          generate_release_notes: true

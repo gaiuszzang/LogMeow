@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import network.LibraryConnectionService
-import network.data.MockApiSetting
-import network.data.MockSupportType
+import io.groovin.logmeow.interceptor.MockApiSettingDto
+import io.groovin.logmeow.interceptor.MockSupportType
 import network.data.NetworkTrafficEntry
 
 data class MockApiDialogRequest(
@@ -31,7 +31,7 @@ data class NetworkInspectorUiState(
     val selectedAppId: String? = null,
     val trafficList: ImmutableList<NetworkTrafficEntry> = persistentListOf(),
     val selectedTraffic: NetworkTrafficEntry? = null,
-    val mockApiSettings: ImmutableList<MockApiSetting> = persistentListOf(),
+    val mockApiSettings: ImmutableList<MockApiSettingDto> = persistentListOf(),
     val showMockApiDialog: Boolean = false,
     val mockApiDialogRequest: MockApiDialogRequest? = null,
     val mockSupportEnabled: Boolean = true,
@@ -172,12 +172,12 @@ class NetworkInspectorViewModel(
         _uiState.value = _uiState.value.copy(showMockApiDialog = false, mockApiDialogRequest = null)
     }
 
-    fun addMockApiSetting(setting: MockApiSetting) {
+    fun addMockApiSetting(setting: MockApiSettingDto) {
         val appId = _uiState.value.selectedAppId ?: return
         service.sendMockApiAdd(appId, setting)
     }
 
-    fun updateMockApiSetting(setting: MockApiSetting) {
+    fun updateMockApiSetting(setting: MockApiSettingDto) {
         val appId = _uiState.value.selectedAppId ?: return
         service.sendMockApiUpdate(appId, setting)
     }

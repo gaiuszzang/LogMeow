@@ -2,6 +2,7 @@ package io.groovin.logmeow.interceptor
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 sealed class LogMeowMessage
@@ -10,7 +11,7 @@ sealed class LogMeowMessage
 
 @Serializable
 @SerialName("handshake")
-internal data class HandshakeMessage(
+data class HandshakeMessage(
     val appId: String,
     val version: String = "1",
     val mockSupportType: String = "always",
@@ -42,29 +43,29 @@ data class TrafficMessage(
 
 @Serializable
 @SerialName("mock_api_add")
-internal data class MockApiAddMessage(
+data class MockApiAddMessage(
     val setting: MockApiSettingDto
 ) : LogMeowMessage()
 
 @Serializable
 @SerialName("mock_api_update")
-internal data class MockApiUpdateMessage(
+data class MockApiUpdateMessage(
     val setting: MockApiSettingDto
 ) : LogMeowMessage()
 
 @Serializable
 @SerialName("mock_api_delete")
-internal data class MockApiDeleteMessage(
+data class MockApiDeleteMessage(
     val id: String
 ) : LogMeowMessage()
 
 @Serializable
 @SerialName("mock_api_clear")
-internal class MockApiClearMessage : LogMeowMessage()
+class MockApiClearMessage : LogMeowMessage()
 
 @Serializable
 @SerialName("clear_buffer")
-internal class ClearBufferMessage : LogMeowMessage()
+class ClearBufferMessage : LogMeowMessage()
 
 // ── Shared DTO ──
 
@@ -78,3 +79,10 @@ data class MockApiSettingDto(
     val responseBody: String? = null,
     val delayMs: Long = 0
 )
+
+// ── Shared Json config ──
+
+val LogMeowJson = Json {
+    classDiscriminator = "type"
+    ignoreUnknownKeys = true
+}

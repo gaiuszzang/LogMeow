@@ -8,7 +8,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope as childScope
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import java.io.BufferedWriter
 import java.net.Socket
@@ -21,14 +20,10 @@ object LogMeowClient {
     private const val RECONNECT_DELAY_MS = 3_000L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val json = Json {
-        classDiscriminator = "type"
-        ignoreUnknownKeys = true
-    }
     private val messageSerializer = serializer<LogMeowMessage>()
 
     private fun encode(message: LogMeowMessage): String =
-        json.encodeToString(messageSerializer, message)
+        LogMeowJson.encodeToString(messageSerializer, message)
 
     // Ring buffer for traffic history
     private val trafficBuffer = ArrayDeque<TrafficMessage>(MAX_BUFFER_SIZE)
@@ -135,7 +130,7 @@ object LogMeowClient {
                 launch(Dispatchers.IO) {
                     try {
                         reader.forEachLine { line ->
-                            runCatching { json.decodeFromString(messageSerializer, line) }
+                            runCatching { LogMeowJson.decodeFromString(messageSerializer, line) }
                                 .getOrNull()
                                 ?.let { handleIncoming(it) }
                         }

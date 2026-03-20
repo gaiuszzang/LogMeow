@@ -1,6 +1,5 @@
 package io.groovin.logmeow.interceptor
 
-import android.content.Context
 import java.util.concurrent.atomic.AtomicBoolean
 
 object LogMeow {
@@ -19,11 +18,11 @@ object LogMeow {
         this.initializer = initializer
     }
 
-    fun init(context: Context, port: Int = DEFAULT_PORT, mockSupportType: MockSupportType = MockSupportType.ALWAYS) {
+    fun init(port: Int = DEFAULT_PORT, mockSupportType: MockSupportType = MockSupportType.ALWAYS) {
         configuredPort = port
         this.mockSupportType = mockSupportType
         if (initialized.compareAndSet(false, true)) {
-            initializer?.initialize(context, port, mockSupportType)
+            initializer?.initialize(port, mockSupportType)
         }
     }
 }

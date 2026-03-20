@@ -1,5 +1,7 @@
 package network.data
 
+import io.groovin.logmeow.interceptor.ResponseType
+
 data class NetworkTrafficEntry(
     val id: Int,
     val appId: String = "unknown",
@@ -28,21 +30,3 @@ data class NetworkTrafficEntry(
     val isCompleted: Boolean
         get() = statusCode != null || error != null
 }
-
-enum class ResponseType {
-    REAL, MOCK
-}
-
-enum class MockSupportType {
-    ALWAYS, CONNECTED_ONLY, DISABLED
-}
-
-data class MockApiSetting(
-    val id: String,
-    val method: String,
-    val url: String,
-    val statusCode: Int = 200,
-    val responseHeaders: Map<String, String> = emptyMap(),
-    val responseBody: String? = null,
-    val delayMs: Long = 0
-)

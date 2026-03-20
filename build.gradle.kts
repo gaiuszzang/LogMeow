@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":interceptor-api"))
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)

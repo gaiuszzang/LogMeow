@@ -2,9 +2,11 @@ package io.groovin.logmeow.interceptor
 
 import android.content.Context
 
-class CoreLogMeowInitializer : LogMeowInitializer {
-    override fun initialize(context: Context, port: Int, mockSupportType: MockSupportType) {
-        val appContext = context.applicationContext
+class CoreLogMeowInitializer(context: Context) : LogMeowInitializer {
+
+    private val appContext: Context = context.applicationContext
+
+    override fun initialize(port: Int, mockSupportType: MockSupportType) {
         when (mockSupportType) {
             MockSupportType.ALWAYS, MockSupportType.CONNECTED_ONLY -> {
                 MockApiSettingsManager.init(appContext)

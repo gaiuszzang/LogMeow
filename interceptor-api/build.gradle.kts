@@ -1,7 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.maven.publish)
 }
 
@@ -11,25 +12,15 @@ val publicationVersion = providers.gradleProperty("LIBRARY_VERSION").get()
 group = publicationGroup
 version = publicationVersion
 
-android {
-    namespace = "io.groovin.logmeow.interceptor.api"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 21
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-}
-
 kotlin {
     jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }
+}
+
+dependencies {
+    api(libs.kotlinx.serialization.json)
 }
 
 mavenPublishing {

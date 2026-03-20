@@ -70,7 +70,7 @@ import kotlinx.coroutines.launch
 import network.data.NetworkTrafficEntry
 import ui.common.Direction
 import ui.common.LazyListScrollBar
-import network.data.ResponseType
+import io.groovin.logmeow.interceptor.ResponseType
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem

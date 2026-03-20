@@ -12,5 +12,5 @@ class LogMeowKtorPluginConfig {
 /** No-op Ktor plugin — does nothing. Safe for release builds. */
 val LogMeowPlugin = createClientPlugin("LogMeow", ::LogMeowKtorPluginConfig) {
     LogMeow.registerInitializer(NoOpLogMeowInitializer)
-    LogMeow.init(pluginConfig.context, pluginConfig.port, pluginConfig.mockSupportType)
+    LogMeow.init(pluginConfig.port, pluginConfig.mockSupportType)
 }

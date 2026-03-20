@@ -15,17 +15,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
-import network.data.MockApiSetting
-import network.data.MockSupportType
+import io.groovin.logmeow.interceptor.ClearBufferMessage
+import io.groovin.logmeow.interceptor.HandshakeMessage
+import io.groovin.logmeow.interceptor.LogMeowJson
+import io.groovin.logmeow.interceptor.LogMeowMessage
+import io.groovin.logmeow.interceptor.MockApiAddMessage
+import io.groovin.logmeow.interceptor.MockApiClearMessage
+import io.groovin.logmeow.interceptor.MockApiDeleteMessage
+import io.groovin.logmeow.interceptor.MockApiSettingDto
+import io.groovin.logmeow.interceptor.MockApiUpdateMessage
+import io.groovin.logmeow.interceptor.MockSupportType
+import io.groovin.logmeow.interceptor.TrafficMessage
 import network.data.NetworkTrafficEntry
-import network.data.ResponseType
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.InputStreamReader
@@ -44,13 +45,12 @@ class LibraryConnectionService(
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val json = Json { ignoreUnknownKeys = true }
 
     // Per-client data
     private val _clientTraffic = MutableStateFlow<Map<String, List<NetworkTrafficEntry>>>(emptyMap())
     val clientTraffic = _clientTraffic.asStateFlow()
 
-    private val _clientMockSettings = MutableStateFlow<Map<String, List<MockApiSetting>>>(emptyMap())
+    private val _clientMockSettings = MutableStateFlow<Map<String, List<MockApiSettingDto>>>(emptyMap())
     val clientMockSettings = _clientMockSettings.asStateFlow()
 
     private val _clientMockSupportType = MutableStateFlow<Map<String, MockSupportType>>(emptyMap())
@@ -138,10 +138,10 @@ class LibraryConnectionService(
                 _clientTraffic.update { it.toMutableMap().apply { remove(appId) } }
             }
         }
-        sendToClient(appId, """{"type":"clear_buffer"}""")
+        sendToClient(appId, encodeMessage(ClearBufferMessage()))
     }
 
-    fun sendMockApiAdd(appId: String, setting: MockApiSetting) {
+    fun sendMockApiAdd(appId: String, setting: MockApiSettingDto) {
         scope.launch {
             mutex.withLock {
                 _clientMockSettings.update { map ->
@@ -151,11 +151,10 @@ class LibraryConnectionService(
                 }
             }
         }
-        val jsonStr = buildMockApiSettingJson(setting)
-        sendToClient(appId, """{"type":"mock_api_add","setting":$jsonStr}""")
+        sendToClient(appId, encodeMessage(MockApiAddMessage(setting)))
     }
 
-    fun sendMockApiUpdate(appId: String, setting: MockApiSetting) {
+    fun sendMockApiUpdate(appId: String, setting: MockApiSettingDto) {
         scope.launch {
             mutex.withLock {
                 _clientMockSettings.update { map ->
@@ -166,8 +165,7 @@ class LibraryConnectionService(
                 }
             }
         }
-        val jsonStr = buildMockApiSettingJson(setting)
-        sendToClient(appId, """{"type":"mock_api_update","setting":$jsonStr}""")
+        sendToClient(appId, encodeMessage(MockApiUpdateMessage(setting)))
     }
 
     fun sendMockApiDelete(appId: String, settingId: String) {
@@ -179,7 +177,7 @@ class LibraryConnectionService(
                 }
             }
         }
-        sendToClient(appId, """{"type":"mock_api_delete","id":"$settingId"}""")
+        sendToClient(appId, encodeMessage(MockApiDeleteMessage(settingId)))
     }
 
     fun sendMockApiClear(appId: String) {
@@ -190,7 +188,7 @@ class LibraryConnectionService(
                 }
             }
         }
-        sendToClient(appId, """{"type":"mock_api_clear"}""")
+        sendToClient(appId, encodeMessage(MockApiClearMessage()))
     }
 
     fun onCleared() {
@@ -220,16 +218,8 @@ class LibraryConnectionService(
         }
     }
 
-    private fun buildMockApiSettingJson(setting: MockApiSetting): String {
-        val headers = setting.responseHeaders.entries.joinToString(",") { (k, v) ->
-            "\"${escapeJson(k)}\":\"${escapeJson(v)}\""
-        }
-        val body = setting.responseBody?.let { "\"${escapeJson(it)}\"" } ?: "null"
-        return """{"id":"${escapeJson(setting.id)}","method":"${escapeJson(setting.method)}","url":"${escapeJson(setting.url)}","statusCode":${setting.statusCode},"responseHeaders":{$headers},"responseBody":$body,"delayMs":${setting.delayMs}}"""
-    }
-
-    private fun escapeJson(s: String): String =
-        s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    private fun encodeMessage(message: LogMeowMessage): String =
+        LogMeowJson.encodeToString(LogMeowMessage.serializer(), message)
 
     private suspend fun handleClient(socket: Socket) {
         synchronized(writerLock) { clientSockets.add(socket) }
@@ -290,43 +280,21 @@ class LibraryConnectionService(
     }
 
     private fun parseHandshake(jsonStr: String): String? = try {
-        val obj = json.parseToJsonElement(jsonStr).jsonObject
-        val appId = obj["appId"]?.jsonPrimitive?.contentOrNull
+        val handshake = LogMeowJson.decodeFromString<HandshakeMessage>(jsonStr)
+        val appId = handshake.appId
 
-        // Parse mock support type
-        val mockSupportTypeStr = obj["mockSupportType"]?.jsonPrimitive?.contentOrNull ?: "always"
-        val mockSupportType = when (mockSupportTypeStr) {
+        val mockSupportType = when (handshake.mockSupportType) {
             "connected_only" -> MockSupportType.CONNECTED_ONLY
             "disabled" -> MockSupportType.DISABLED
             else -> MockSupportType.ALWAYS
         }
-        if (appId != null) {
-            _clientMockSupportType.update { it + (appId to mockSupportType) }
-        }
+        _clientMockSupportType.update { it + (appId to mockSupportType) }
 
-        // Parse mock API settings
-        val mockSettings = obj["mockApiSettings"]?.jsonArray?.mapNotNull { element ->
-            try {
-                val settingObj = element.jsonObject
-                MockApiSetting(
-                    id = settingObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
-                    method = settingObj["method"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
-                    url = settingObj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
-                    statusCode = settingObj["statusCode"]?.jsonPrimitive?.intOrNull ?: 200,
-                    responseHeaders = settingObj["responseHeaders"]?.jsonObject
-                        ?.entries?.associate { it.key to (it.value.jsonPrimitive.contentOrNull ?: "") }
-                        ?: emptyMap(),
-                    responseBody = settingObj["responseBody"]?.jsonPrimitive?.contentOrNull,
-                    delayMs = settingObj["delayMs"]?.jsonPrimitive?.longOrNull ?: 0
-                )
-            } catch (_: Exception) { null }
-        } ?: emptyList()
-
-        if (appId != null && mockSettings.isNotEmpty()) {
+        if (handshake.mockApiSettings.isNotEmpty()) {
             scope.launch {
                 mutex.withLock {
                     _clientMockSettings.update { map ->
-                        map + (appId to mockSettings)
+                        map + (appId to handshake.mockApiSettings)
                     }
                 }
             }
@@ -336,34 +304,23 @@ class LibraryConnectionService(
     } catch (_: Exception) { null }
 
     private fun parseTrafficJson(jsonStr: String, appId: String): NetworkTrafficEntry? = try {
-        val obj = json.parseToJsonElement(jsonStr).jsonObject
-        val typeStr = obj["type"]?.jsonPrimitive?.contentOrNull
-        if (typeStr != "traffic") null
-        else {
-            val responseTypeStr = obj["responseType"]?.jsonPrimitive?.contentOrNull
-            val responseType = when (responseTypeStr) {
-                "mock" -> ResponseType.MOCK
-                else -> ResponseType.REAL
-            }
+        val message = LogMeowJson.decodeFromString<LogMeowMessage>(jsonStr)
+        if (message is TrafficMessage) {
             NetworkTrafficEntry(
                 id = nextEntryId.getAndIncrement(),
                 appId = appId,
-                method = obj["method"]?.jsonPrimitive?.contentOrNull ?: "GET",
-                url = obj["url"]?.jsonPrimitive?.contentOrNull ?: "",
-                requestHeaders = obj["requestHeaders"]?.jsonObject
-                    ?.entries?.associate { it.key to (it.value.jsonPrimitive.contentOrNull ?: "") }
-                    ?: emptyMap(),
-                requestBody = obj["requestBody"]?.jsonPrimitive?.contentOrNull,
-                statusCode = obj["statusCode"]?.jsonPrimitive?.intOrNull,
-                responseHeaders = obj["responseHeaders"]?.jsonObject
-                    ?.entries?.associate { it.key to (it.value.jsonPrimitive.contentOrNull ?: "") }
-                    ?: emptyMap(),
-                responseBody = obj["responseBody"]?.jsonPrimitive?.contentOrNull,
-                durationMs = obj["durationMs"]?.jsonPrimitive?.longOrNull,
-                error = obj["error"]?.jsonPrimitive?.contentOrNull,
-                responseType = responseType
+                method = message.method,
+                url = message.url,
+                requestHeaders = message.requestHeaders,
+                requestBody = message.requestBody,
+                statusCode = message.statusCode,
+                responseHeaders = message.responseHeaders,
+                responseBody = message.responseBody,
+                durationMs = message.durationMs,
+                error = message.error,
+                responseType = message.responseType
             )
-        }
+        } else null
     } catch (e: Exception) {
         println("JSON parse error: ${e.message}")
         null

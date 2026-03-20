@@ -67,7 +67,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.launch
-import network.data.MockApiSetting
+import io.groovin.logmeow.interceptor.MockApiSettingDto
 import ui.common.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
@@ -95,9 +95,9 @@ private data class InitialMockState(
 
 @Composable
 fun MockApiSettingScreen(
-    mockApiSettings: List<MockApiSetting>,
-    onAdd: (MockApiSetting) -> Unit,
-    onUpdate: (MockApiSetting) -> Unit,
+    mockApiSettings: List<MockApiSettingDto>,
+    onAdd: (MockApiSettingDto) -> Unit,
+    onUpdate: (MockApiSettingDto) -> Unit,
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit,
     dialogRequest: MockApiDialogRequest? = null
@@ -153,7 +153,7 @@ fun MockApiSettingScreen(
 
     val selectedSetting = if (selectedIndex in mockApiSettings.indices) mockApiSettings[selectedIndex] else null
 
-    fun loadSetting(setting: MockApiSetting) {
+    fun loadSetting(setting: MockApiSettingDto) {
         editMethod = setting.method
         editUrl = setting.url
         editStatusCode = setting.statusCode.toString()
@@ -229,7 +229,7 @@ fun MockApiSettingScreen(
         val delay = editDelayMs.toLongOrNull() ?: 0
 
         if (isAddMode) {
-            val setting = MockApiSetting(
+            val setting = MockApiSettingDto(
                 id = UUID.randomUUID().toString(),
                 method = editMethod,
                 url = editUrl,
@@ -367,7 +367,7 @@ fun MockApiSettingScreen(
 
 @Composable
 private fun MockApiList(
-    settings: List<MockApiSetting>,
+    settings: List<MockApiSettingDto>,
     selectedIndex: Int,
     isEditMode: Boolean,
     onSelect: (Int) -> Unit,

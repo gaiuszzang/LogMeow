@@ -50,7 +50,7 @@ jobs:
       - name: Show publication version
         shell: bash
         run: |
-          VERSION_NAME="$(sed -n 's/^VERSION_NAME=//p' gradle.properties)"
+          VERSION_NAME="$(sed -n 's/^LIBRARY_VERSION=//p' gradle.properties)"
           GROUP_ID="$(sed -n 's/^GROUP=//p' gradle.properties)"
           echo "Publishing ${GROUP_ID}:logmeow-interceptor-*:${VERSION_NAME}"
 
@@ -62,6 +62,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
         run: |
           ./gradlew \
+            :interceptor-api:publishAndReleaseToMavenCentral \
             :interceptor-core:publishAndReleaseToMavenCentral \
             :interceptor-okhttp:publishAndReleaseToMavenCentral \
             :interceptor-ktor:publishAndReleaseToMavenCentral \

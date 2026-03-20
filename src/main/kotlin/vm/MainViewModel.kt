@@ -303,15 +303,7 @@ class MainViewModel(
     }
 
     private fun updateFilteredLogs() {
-        val filtered = allLogs.filter { log ->
-            val levelMatch = _uiState.value.logLevelFilter == null || log.level == _uiState.value.logLevelFilter
-            val pidMatch = _uiState.value.filterPid == null || log.pid == _uiState.value.filterPid
-            val tagMatch = _uiState.value.filterTag.isNullOrBlank() ||
-                log.tag.contains(_uiState.value.filterTag!!, ignoreCase = true)
-            val messageMatch = _uiState.value.filterMessage.isNullOrBlank() ||
-                log.message.contains(_uiState.value.filterMessage!!, ignoreCase = true)
-            levelMatch && pidMatch && tagMatch && messageMatch
-        }.toImmutableList()
+        val filtered = allLogs.filter { isLogMatchingFilter(it) }.toImmutableList()
 
         // Calculate bookmarked indices in filtered logs
         val bookmarkedIndices = filtered.mapIndexedNotNull { index, log ->

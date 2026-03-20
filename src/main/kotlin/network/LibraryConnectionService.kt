@@ -125,10 +125,7 @@ class LibraryConnectionService(
         val deviceId = currentDeviceId
         if (deviceId != null) {
             currentDeviceId = null
-            // Remove ADB reverse in background - don't block or rely on scope
-            Thread {
-                try { adbService.removeAdbReverseBlocking(deviceId) } catch (_: Exception) {}
-            }.start()
+            try { adbService.removeAdbReverse(deviceId) } catch (_: Exception) {}
         }
     }
 

@@ -20,7 +20,7 @@ val DeleteIcon: ImageVector
             viewportHeight = 24f
         ).apply {
             path(
-                fill = SolidColor(Color.LightGray),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {

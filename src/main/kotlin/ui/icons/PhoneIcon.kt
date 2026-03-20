@@ -20,7 +20,7 @@ val PhoneIcon: ImageVector
             viewportHeight = 24f
         ).apply {
             path(
-                fill = SolidColor(Color.LightGray),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {
@@ -46,7 +46,7 @@ val PhoneIcon: ImageVector
                 close()
             }
             path(
-                fill = SolidColor(Color.LightGray),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {
@@ -57,7 +57,7 @@ val PhoneIcon: ImageVector
                 arcToRelative(1.05f, 1.05f, 0f, true, true, -2.1f, 0f)
             }
             path(
-                fill = SolidColor(Color.LightGray),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {

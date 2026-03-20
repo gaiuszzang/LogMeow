@@ -46,9 +46,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import ui.common.AppTheme
-import ui.common.LogMeowColors
+import ui.theme.AppTheme
+import ui.theme.LocalLogMeowTheme
 import ui.common.DropDownButton
 import ui.common.SingleLineTextField
 import ui.common.IconButton
@@ -63,9 +62,11 @@ import ui.icons.PhoneIcon
 import ui.icons.PlayIcon
 import ui.icons.StopIcon
 import ui.icons.NetworkIcon
+import ui.icons.SettingsIcon
 import ui.icons.VideoIcon
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import ui.theme.themeByName
 import vm.DeepLinkPopupViewModel
 import vm.DisplayMode
 import vm.MainViewModel
@@ -84,6 +85,8 @@ fun MainScreen(
     val isScreenRecording by viewModel.isScreenRecording.collectAsState()
     val isDeepLinkPopupVisible by viewModel.isDeepLinkPopupVisible.collectAsState()
     val isNetworkInspectorVisible by viewModel.isNetworkInspectorVisible.collectAsState()
+    val isSettingsVisible by viewModel.isSettingsVisible.collectAsState()
+    val settings by viewModel.settingsFlow.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
     var deviceListExpanded by remember { mutableStateOf(false) }
@@ -95,7 +98,8 @@ fun MainScreen(
         focusRequester.requestFocus()
     }
 
-    AppTheme {
+    AppTheme(theme = themeByName(settings.themeName)) {
+        val theme = LocalLogMeowTheme.current
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,8 +138,8 @@ fun MainScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Device List Dropdown
-                Text("Device List", fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                RowItemSpacer()
+                Text("Device List", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+                Spacer(Modifier.width(8.dp))
                 Box {
                     DropDownButton(
                         modifier = Modifier
@@ -167,16 +171,16 @@ fun MainScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(device.id, fontSize = 12.sp)
+                                    Text(device.id, fontSize = theme.fontSizeBody)
                                     Spacer(Modifier.width(16.dp))
                                     Text(
                                         text = device.state.name,
                                         color = when (device.state) {
-                                            AdbDeviceState.DEVICE -> LogMeowColors.ServerRunning
-                                            AdbDeviceState.OFFLINE -> Color.Red
-                                            else -> Color.Gray
+                                            AdbDeviceState.DEVICE -> theme.serverRunning
+                                            AdbDeviceState.OFFLINE -> theme.danger
+                                            else -> theme.textDim
                                         },
-                                        fontSize = 12.sp
+                                        fontSize = theme.fontSizeBody
                                     )
                                 }
                             }
@@ -188,7 +192,9 @@ fun MainScreen(
                 IconButton(
                     modifier = Modifier.size(36.dp),
                     icon = if (isLogging) StopIcon else PlayIcon,
+                    tintColor = if (isLogging) theme.stopIcon else theme.playIcon,
                     enabled = selectedDevice != null,
+                    tooltip = if (isLogging) "Stop Logging" else "Start Logging",
                     onClick = { viewModel.toggleLogging() },
                 )
                 RowItemSpacer()
@@ -196,6 +202,7 @@ fun MainScreen(
                 IconButton(
                     modifier = Modifier.size(36.dp),
                     icon = DeleteIcon,
+                    tooltip = "Clear Logs",
                     onClick = { viewModel.clearLogs() }
                 )
                 RowItemDivider()
@@ -204,6 +211,7 @@ fun MainScreen(
                     modifier = Modifier.size(36.dp),
                     icon = CameraIcon,
                     enabled = selectedDevice != null,
+                    tooltip = "Screenshot",
                     onClick = { viewModel.captureScreenshot() }
                 )
                 RowItemSpacer()
@@ -212,7 +220,8 @@ fun MainScreen(
                     modifier = Modifier.size(36.dp),
                     icon = VideoIcon,
                     enabled = selectedDevice != null,
-                    backgroundColor = if (isScreenRecording) Color.Red /* TODO */ else Color.Unspecified,
+                    backgroundColor = if (isScreenRecording) theme.danger else Color.Unspecified,
+                    tooltip = if (isScreenRecording) "Stop Recording" else "Screen Recording",
                     onClick = { viewModel.toggleScreenRecording() }
                 )
                 RowItemDivider()
@@ -221,6 +230,7 @@ fun MainScreen(
                     modifier = Modifier.size(36.dp),
                     icon = NavigationIcon,
                     enabled = selectedDevice != null,
+                    tooltip = "DeepLink",
                     onClick = { viewModel.showDeepLinkPopup() }
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -229,6 +239,7 @@ fun MainScreen(
                     modifier = Modifier.size(36.dp),
                     icon = PhoneIcon,
                     enabled = selectedDevice != null,
+                    tooltip = "Scrcpy",
                     onClick = { viewModel.launchScrcpy() }
                 )
                 RowItemDivider()
@@ -237,7 +248,16 @@ fun MainScreen(
                     modifier = Modifier.size(36.dp),
                     icon = NetworkIcon,
                     enabled = selectedDevice != null,
+                    tooltip = "Network Inspector",
                     onClick = { viewModel.showNetworkInspector() }
+                )
+                Spacer(Modifier.weight(1f))
+                // Settings Button
+                IconButton(
+                    modifier = Modifier.size(36.dp),
+                    icon = SettingsIcon,
+                    tooltip = "Settings",
+                    onClick = { viewModel.showSettings() }
                 )
             }
 
@@ -249,8 +269,8 @@ fun MainScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // LogLevel Filter Dropdown
-                Text("LogLevelFilter", fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                RowItemSpacer()
+                Text("LogLevelFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+                RowItemSpacer(8.dp)
                 Box {
                     DropDownButton(
                         modifier = Modifier.width(100.dp),
@@ -268,7 +288,7 @@ fun MainScreen(
                                 logLevelFilterExpanded = false
                             }
                         ) {
-                            Text("All", fontSize = 12.sp)
+                            Text("All", fontSize = theme.fontSizeBody)
                         }
                         LogLevel.entries.forEach { level ->
                             DropdownMenuItem(
@@ -277,15 +297,15 @@ fun MainScreen(
                                     logLevelFilterExpanded = false
                                 }
                             ) {
-                                Text(level.name, fontSize = 12.sp)
+                                Text(level.name, fontSize = theme.fontSizeBody)
                             }
                         }
                     }
                 }
-                RowItemSpacer()
+                RowItemSpacer(8.dp)
                 // PID Filter Text Field
-                Text("PIDFilter", fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                RowItemSpacer()
+                Text("PIDFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+                RowItemSpacer(8.dp)
                 SingleLineTextField(
                     value = uiState.filterPid?.toString() ?: "",
                     onValueChange = {
@@ -294,19 +314,19 @@ fun MainScreen(
                     },
                     modifier = Modifier.width(70.dp)
                 )
-                RowItemSpacer()
+                RowItemSpacer(8.dp)
                 // Tag Filter Text Field
-                Text("TagFilter", fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                RowItemSpacer()
+                Text("TagFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+                RowItemSpacer(8.dp)
                 SingleLineTextField(
                     value = uiState.filterTag ?: "",
                     onValueChange = { viewModel.updateTagFilter(it.ifBlank { null }) },
                     modifier = Modifier.width(180.dp)
                 )
-                RowItemSpacer()
+                RowItemSpacer(8.dp)
                 // Message Filter Text Field
-                Text("MessageFilter", fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                RowItemSpacer()
+                Text("MessageFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+                RowItemSpacer(8.dp)
                 SingleLineTextField(
                     value = uiState.filterMessage ?: "",
                     onValueChange = { viewModel.updateMessageFilter(it.ifBlank { null }) },
@@ -321,7 +341,7 @@ fun MainScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
+                    .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
             ) {
                 LogCatView(
                     uiState = uiState,
@@ -357,33 +377,13 @@ fun MainScreen(
             ) {
                 // Left side: Display Mode toggle button
                 val isCompactMode = uiState.displayMode == DisplayMode.Compact
-                var isDisplayModeHovered by remember { mutableStateOf(false) }
                 Text(
                     modifier = Modifier
-                        .background(
-                            color = when {
-                                isCompactMode -> LogMeowColors.TextSelectionBackground
-                                isDisplayModeHovered -> LogMeowColors.TextSelectionHoverBackground
-                                else -> Color.Transparent
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    when (event.type) {
-                                        PointerEventType.Enter -> isDisplayModeHovered = true
-                                        PointerEventType.Exit -> isDisplayModeHovered = false
-                                    }
-                                }
-                            }
-                        }
                         .clickable { viewModel.toggleDisplayMode() }
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     text = if (isCompactMode) "Show Compact Mode" else "Show All Mode",
-                    fontSize = 12.sp,
-                    color = if (isCompactMode) Color.White else Color.Gray
+                    fontSize = theme.fontSizeBody,
+                    color = if (isCompactMode) theme.textPrimary else theme.textDim
                 )
 
                 // Right side: Bookmarks and LogSize
@@ -395,8 +395,8 @@ fun MainScreen(
                             modifier = Modifier
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             text = "Bookmarks : ${uiState.bookmarkCount}",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            fontSize = theme.fontSizeBody,
+                            color = theme.textDim
                         )
                         Spacer(Modifier.width(4.dp))
                         IconButton(
@@ -416,8 +416,8 @@ fun MainScreen(
                         modifier = Modifier
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                         text = "LogSize : ${uiState.allLogCount}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        fontSize = theme.fontSizeBody,
+                        color = theme.textDim
                     )
                 }
             }
@@ -432,6 +432,7 @@ fun MainScreen(
                 )
                 DeepLinkPopupScreen(
                     viewModel = deepLinkViewModel,
+                    theme = themeByName(settings.themeName),
                     onDismiss = { viewModel.hideDeepLinkPopup() }
                 )
             }
@@ -446,9 +447,20 @@ fun MainScreen(
                 )
                 NetworkInspectorScreen(
                     viewModel = networkViewModel,
+                    theme = themeByName(settings.themeName),
                     onDismiss = { viewModel.hideNetworkInspector() }
                 )
             }
+        }
+
+        // Settings Popup
+        if (isSettingsVisible) {
+            SettingsPopupScreen(
+                theme = themeByName(settings.themeName),
+                currentThemeName = settings.themeName,
+                onThemeChange = { viewModel.updateTheme(it) },
+                onDismiss = { viewModel.hideSettings() }
+            )
         }
     }
 }

@@ -20,7 +20,7 @@ val StopIcon: ImageVector
             viewportHeight = 24f
         ).apply {
             path(
-                fill = SolidColor(Color(0xFFE04040)),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {

@@ -1,16 +1,17 @@
-package ui.common
+package ui.theme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Colors
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Shapes
 import androidx.compose.material.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.em
@@ -25,22 +26,30 @@ private val centeredTextStyle = TextStyle(
 )
 
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
+fun AppTheme(
+    theme: LogMeowTheme = IslandsDarkTheme,
+    content: @Composable () -> Unit
+) {
     MaterialTheme(
         colors = Colors(
-            primary = Color.Gray,
-            onPrimary = Color.LightGray,
-            primaryVariant = Color.DarkGray,
-            secondary = Color.Blue,
-            onSecondary = Color.LightGray,
-            secondaryVariant = Color.Green,
-            background = Color(0xff3c3e40),
-            onBackground = Color.LightGray,
-            surface = LogMeowColors.DarkBackground,
-            onSurface = Color.LightGray,
-            error = Color.Red,
-            onError = Color.LightGray,
+            primary = theme.textDim,
+            onPrimary = theme.textSecondary,
+            primaryVariant = theme.border,
+            secondary = theme.accent,
+            onSecondary = theme.textSecondary,
+            secondaryVariant = theme.success,
+            background = theme.materialBackground,
+            onBackground = theme.textSecondary,
+            surface = theme.darkBackground,
+            onSurface = theme.textSecondary,
+            error = theme.danger,
+            onError = theme.textSecondary,
             isLight = false
+        ),
+        shapes = Shapes(
+            small = RoundedCornerShape(theme.cornerRadiusSmall),
+            medium = RoundedCornerShape(theme.cornerRadius),
+            large = RoundedCornerShape(theme.cornerRadius)
         ),
         typography = Typography().let { defaultTypography ->
             Typography(
@@ -60,11 +69,13 @@ fun AppTheme(content: @Composable () -> Unit) {
             )
         }
     ) {
-        AppLocalCommonProvider {
-            Box(
-                modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colors.surface)
-            ) {
-                content()
+        CompositionLocalProvider(LocalLogMeowTheme provides theme) {
+            AppLocalCommonProvider {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(color = MaterialTheme.colors.surface)
+                ) {
+                    content()
+                }
             }
         }
     }

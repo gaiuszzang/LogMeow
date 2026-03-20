@@ -21,7 +21,7 @@ val NetworkIcon: ImageVector
             viewportWidth = 24f,
             viewportHeight = 24f
         ).apply {
-            val stroke = SolidColor(Color.LightGray)
+            val stroke = SolidColor(Color.Black)
             val strokeWidth = 1.6f
             // Outer circle
             path(

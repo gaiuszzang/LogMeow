@@ -11,11 +11,11 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
+import ui.theme.LocalLogMeowTheme
 
 @Composable
 fun SingleLineTextField(
@@ -23,10 +23,11 @@ fun SingleLineTextField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     Box(
         Modifier
             .height(36.dp)
-            .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
             .padding(horizontal = 8.dp)
             .then(modifier),
         contentAlignment = Alignment.CenterStart
@@ -37,11 +38,11 @@ fun SingleLineTextField(
             value = value,
             onValueChange = onValueChange,
             textStyle = TextStyle(
-                fontSize = 12.sp,
+                fontSize = theme.fontSizeBody,
                 color = MaterialTheme.colors.onSurface
             ),
             singleLine = true,
-            cursorBrush = SolidColor(Color.White)
+            cursorBrush = SolidColor(theme.textPrimary)
         )
     }
 }

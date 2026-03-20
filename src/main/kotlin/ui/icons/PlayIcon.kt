@@ -20,7 +20,7 @@ val PlayIcon: ImageVector
             viewportHeight = 24f
         ).apply {
             path(
-                fill = SolidColor(Color(0xFF50E050)),
+                fill = SolidColor(Color.Black),
                 fillAlpha = 1f,
                 pathFillType = PathFillType.NonZero
             ) {

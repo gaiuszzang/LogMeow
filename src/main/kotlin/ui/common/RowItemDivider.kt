@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import ui.theme.LocalLogMeowTheme
 
 @Composable
 fun RowItemDivider() {
@@ -16,6 +16,6 @@ fun RowItemDivider() {
         .padding(horizontal = 4.dp)
         .height(24.dp)
         .width(1.dp)
-        .background(Color.DarkGray)
+        .background(LocalLogMeowTheme.current.divider)
     )
 }

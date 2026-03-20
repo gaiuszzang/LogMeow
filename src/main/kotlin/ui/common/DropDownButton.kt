@@ -8,17 +8,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import ui.icons.ArrowDownIcon
+import ui.theme.LocalLogMeowTheme
 
 @Composable
 fun DropDownButton(
@@ -27,11 +26,12 @@ fun DropDownButton(
     enabled: Boolean = true,
     onClick: () -> Unit = {}
 ) {
+    val theme = LocalLogMeowTheme.current
     Row(
         modifier = Modifier
             .height(36.dp)
-            .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-            .clip(RoundedCornerShape(4.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+            .clip(RoundedCornerShape(theme.cornerRadius))
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 12.dp)
             .then(modifier),
@@ -40,8 +40,8 @@ fun DropDownButton(
         Text(
             modifier = Modifier.weight(1f),
             text = text,
-            color = if (enabled) MaterialTheme.colors.onSurface else Color.DarkGray,
-            fontSize = 12.sp,
+            color = if (enabled) theme.textSecondary else theme.border,
+            fontSize = theme.fontSizeBody,
             minLines = 1,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -51,7 +51,7 @@ fun DropDownButton(
             modifier = Modifier.size(20.dp),
             imageVector = ArrowDownIcon,
             contentDescription = null,
-            tint = if (enabled) Color.Gray else Color.DarkGray
+            tint = if (enabled) theme.textDim else theme.border
         )
     }
 }

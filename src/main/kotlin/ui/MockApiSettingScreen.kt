@@ -61,20 +61,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 
-import androidx.compose.ui.unit.sp
-
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.launch
 import io.groovin.logmeow.interceptor.MockApiSettingDto
-import ui.common.AppTheme
+import ui.theme.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
 import ui.common.Direction
 import ui.common.DragHandle
 import ui.common.LazyListScrollBar
-import ui.common.LogMeowColors
+import ui.theme.LocalLogMeowTheme
 import ui.common.OutlinedSingleTextField
 import vm.MockApiDialogRequest
 import java.util.UUID
@@ -288,9 +286,10 @@ fun MockApiSettingScreen(
         )
     ) {
         AppTheme {
+            val theme = LocalLogMeowTheme.current
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = LogMeowColors.DarkBackground
+                color = theme.darkBackground
             ) {
                 var splitFraction by remember { mutableStateOf(0.35f) }
                 var totalWidth by remember { mutableStateOf(0f) }
@@ -376,6 +375,7 @@ private fun MockApiList(
     onCopy: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -384,16 +384,16 @@ private fun MockApiList(
     Column(modifier = modifier) {
         Text(
             text = "Mock APIs (${settings.size})",
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             fontWeight = FontWeight.Medium,
-            color = Color.White,
+            color = theme.textPrimary,
             modifier = Modifier.padding(bottom = 4.dp)
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-                .background(LogMeowColors.PanelBackground)
+                .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+                .background(theme.panelBackground)
         ) {
         LazyColumn(
             state = listState,
@@ -456,8 +456,8 @@ private fun MockApiList(
                 val isSelected = index == selectedIndex
                 val itemAlpha = if (isEditMode && !isSelected) 0.4f else 1f
                 val backgroundColor = when {
-                    isSelected && isFocused -> LogMeowColors.SelectedFocused
-                    isSelected -> LogMeowColors.SelectedUnfocused
+                    isSelected && isFocused -> theme.selectedFocused
+                    isSelected -> theme.selectedUnfocused
                     else -> Color.Transparent
                 }
                 ContextDropdownMenu(
@@ -465,7 +465,7 @@ private fun MockApiList(
                         if (isEditMode) emptyList()
                         else listOf(
                             DarkMenuItem("Copy to New") { onCopy(index) },
-                            DarkMenuItem("Delete", color = LogMeowColors.Danger) { onDelete(index) }
+                            DarkMenuItem("Delete", color = theme.danger) { onDelete(index) }
                         )
                     }
                 ) {
@@ -484,18 +484,18 @@ private fun MockApiList(
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val mColor = LogMeowColors.methodColor(setting.method)
+                        val mColor = theme.methodColor(setting.method)
                         Text(
                             text = setting.method,
-                            fontSize = 11.sp,
+                            fontSize = theme.fontSizeLabel,
                             fontWeight = FontWeight.Bold,
                             color = mColor.copy(alpha = itemAlpha),
                             modifier = Modifier.width(60.dp)
                         )
                         Text(
                             text = setting.url,
-                            fontSize = 12.sp,
-                            color = Color.LightGray.copy(alpha = itemAlpha),
+                            fontSize = theme.fontSizeBody,
+                            color = theme.textSecondary.copy(alpha = itemAlpha),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -519,9 +519,9 @@ private fun MockApiList(
                 ) {
                     Text(
                         text = "+ Add",
-                        fontSize = 13.sp,
+                        fontSize = theme.fontSizeTitle,
                         fontWeight = FontWeight.Medium,
-                        color = if (isEditMode) Color.Gray else LogMeowColors.Accent
+                        color = if (isEditMode) theme.textDim else theme.accent
                     )
                 }
             }
@@ -530,8 +530,8 @@ private fun MockApiList(
                 state = listState,
                 direction = Direction.Vertical,
                 thickness = 8.dp,
-                color = Color.Gray,
-                backgroundColor = Color.DarkGray,
+                color = theme.textDim,
+                backgroundColor = theme.border,
             )
         }
     }
@@ -561,13 +561,14 @@ private fun MockApiDetail(
     duplicateError: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     Column(modifier = modifier) {
         // Title
         Text(
             text = "Mock Contents",
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             fontWeight = FontWeight.Medium,
-            color = Color.White,
+            color = theme.textPrimary,
             modifier = Modifier.padding(bottom = 4.dp)
         )
 
@@ -576,8 +577,8 @@ private fun MockApiDetail(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-                .background(LogMeowColors.PanelBackground, RoundedCornerShape(4.dp))
+                .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+                .background(theme.panelBackground, RoundedCornerShape(theme.cornerRadius))
         ) {
             if (!hasSelection) {
                 Box(
@@ -586,8 +587,8 @@ private fun MockApiDetail(
                 ) {
                     Text(
                         text = "Select a mock API or add a new one",
-                        fontSize = 13.sp,
-                        color = Color.Gray
+                        fontSize = theme.fontSizeTitle,
+                        color = theme.textDim
                     )
                 }
             } else {
@@ -619,7 +620,7 @@ private fun MockApiDetail(
                     Spacer(Modifier.height(12.dp))
 
                     // Response Settings
-                    Text("Response Settings", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                    Text("Response Settings", fontSize = theme.fontSizeTitle, color = theme.textPrimary, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
                     OutlinedSingleTextField(
                         value = editStatusCode,
@@ -642,7 +643,7 @@ private fun MockApiDetail(
                     Spacer(Modifier.height(12.dp))
 
                     // Response Headers
-                    Text("Response Headers", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                    Text("Response Headers", fontSize = theme.fontSizeTitle, color = theme.textPrimary, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
                     HeaderEditor(
                         headers = editHeaders,
@@ -658,24 +659,24 @@ private fun MockApiDetail(
                         it.startsWith("{") || it.startsWith("[")
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Response Body", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                        Text("Response Body", fontSize = theme.fontSizeTitle, color = theme.textPrimary, fontWeight = FontWeight.Medium)
                         if (!isEditMode && isJsonBody) {
                             Spacer(Modifier.width(8.dp))
                             Checkbox(
                                 checked = prettyJsonEnabled,
                                 onCheckedChange = { prettyJsonEnabled = it },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = LogMeowColors.Accent,
-                                    uncheckedColor = Color.Gray,
-                                    checkmarkColor = Color.White
+                                    checkedColor = theme.accent,
+                                    uncheckedColor = theme.textDim,
+                                    checkmarkColor = theme.textPrimary
                                 ),
                                 modifier = Modifier.size(14.dp).scale(0.75f)
                             )
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 text = "Pretty Json",
-                                fontSize = 11.sp,
-                                color = Color.Gray,
+                                fontSize = theme.fontSizeLabel,
+                                color = theme.textDim,
                                 modifier = Modifier.clickable { prettyJsonEnabled = !prettyJsonEnabled }
                             )
                         }
@@ -704,8 +705,8 @@ private fun MockApiDetail(
             if (duplicateError) {
                 Text(
                     text = "A mock with the same Method and URL already exists.",
-                    fontSize = 12.sp,
-                    color = LogMeowColors.Danger,
+                    fontSize = theme.fontSizeBody,
+                    color = theme.danger,
                     modifier = Modifier.padding(top = 6.dp)
                 )
             }
@@ -719,44 +720,44 @@ private fun MockApiDetail(
                     Button(
                         onClick = onCancel,
                         colors = ButtonDefaults.buttonColors(
-                            backgroundColor = LogMeowColors.ButtonBackground,
-                            contentColor = Color.White
+                            backgroundColor = theme.buttonBackground,
+                            contentColor = theme.textPrimary
                         )
                     ) {
-                        Text("Cancel", fontSize = 13.sp)
+                        Text("Cancel", fontSize = theme.fontSizeTitle)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = onSave,
                         enabled = !isUrlEmpty,
                         colors = ButtonDefaults.buttonColors(
-                            backgroundColor = LogMeowColors.AccentBackground,
-                            contentColor = Color.White,
-                            disabledBackgroundColor = LogMeowColors.DisabledBackground,
-                            disabledContentColor = Color.Gray
+                            backgroundColor = theme.accentBackground,
+                            contentColor = theme.textPrimary,
+                            disabledBackgroundColor = theme.disabledBackground,
+                            disabledContentColor = theme.textDim
                         )
                     ) {
-                        Text("Save", fontSize = 13.sp)
+                        Text("Save", fontSize = theme.fontSizeTitle)
                     }
                 } else {
                     Button(
                         onClick = onDelete,
                         colors = ButtonDefaults.buttonColors(
-                            backgroundColor = LogMeowColors.DeleteButtonBackground,
-                            contentColor = Color.White
+                            backgroundColor = theme.deleteButtonBackground,
+                            contentColor = theme.textPrimary
                         )
                     ) {
-                        Text("Delete", fontSize = 13.sp)
+                        Text("Delete", fontSize = theme.fontSizeTitle)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = onEdit,
                         colors = ButtonDefaults.buttonColors(
-                            backgroundColor = LogMeowColors.AccentBackground,
-                            contentColor = Color.White
+                            backgroundColor = theme.accentBackground,
+                            contentColor = theme.textPrimary
                         )
                     ) {
-                        Text("Edit", fontSize = 13.sp)
+                        Text("Edit", fontSize = theme.fontSizeTitle)
                     }
                 }
             }
@@ -771,24 +772,25 @@ private fun MethodDropdown(
     onSelect: (String) -> Unit,
     enabled: Boolean = true
 ) {
+    val theme = LocalLogMeowTheme.current
     var expanded by remember { mutableStateOf(false) }
-    val color = LogMeowColors.methodColor(selected)
+    val color = theme.methodColor(selected)
 
     Box {
         Box(
             modifier = Modifier
                 .width(90.dp)
-                .background(color.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                .background(color.copy(alpha = 0.15f), RoundedCornerShape(theme.cornerRadius))
+                .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(theme.cornerRadius))
                 .then(if (enabled) Modifier.clickable { expanded = true } else Modifier)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = selected,
-                fontSize = 13.sp,
+                fontSize = theme.fontSizeTitle,
                 fontWeight = FontWeight.Bold,
-                color = if (enabled) color else Color.Gray
+                color = if (enabled) color else theme.textDim
             )
         }
         if (enabled) {
@@ -801,7 +803,7 @@ private fun MethodDropdown(
                         onSelect(method)
                         expanded = false
                     }) {
-                        Text(method, fontSize = 13.sp, color = LogMeowColors.methodColor(method), fontWeight = FontWeight.Bold)
+                        Text(method, fontSize = theme.fontSizeTitle, color = theme.methodColor(method), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -815,9 +817,10 @@ private fun HeaderEditor(
     onChange: (List<Pair<String, String>>) -> Unit,
     readOnly: Boolean = false
 ) {
+    val theme = LocalLogMeowTheme.current
     Column {
         if (headers.isEmpty() && readOnly) {
-            Text("(none)", fontSize = 12.sp, color = Color.Gray)
+            Text("(none)", fontSize = theme.fontSizeBody, color = theme.textDim)
         }
         headers.forEachIndexed { index, (key, value) ->
             Row(
@@ -849,9 +852,9 @@ private fun HeaderEditor(
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "X",
-                        fontSize = 13.sp,
+                        fontSize = theme.fontSizeTitle,
                         fontWeight = FontWeight.Bold,
-                        color = LogMeowColors.Danger,
+                        color = theme.danger,
                         modifier = Modifier
                             .clickable {
                                 onChange(headers.toMutableList().apply { removeAt(index) })
@@ -864,8 +867,8 @@ private fun HeaderEditor(
         if (!readOnly) {
             Text(
                 text = "+ Add Header",
-                fontSize = 12.sp,
-                color = LogMeowColors.Accent,
+                fontSize = theme.fontSizeBody,
+                color = theme.accent,
                 modifier = Modifier
                     .clickable { onChange(headers + ("" to "")) }
                     .padding(vertical = 4.dp)

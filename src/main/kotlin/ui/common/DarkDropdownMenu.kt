@@ -19,11 +19,12 @@ import androidx.compose.ui.input.pointer.PointerButton
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
+import ui.theme.LocalLogMeowTheme
 
 data class DarkMenuItem(
     val label: String,
-    val color: Color = Color.LightGray,
+    val color: Color? = null,
     val onClick: () -> Unit
 )
 
@@ -72,8 +73,8 @@ fun ContextDropdownMenu(
                 ) {
                     Text(
                         text = item.label,
-                        fontSize = 12.sp,
-                        color = item.color
+                        fontSize = LocalLogMeowTheme.current.fontSizeBody,
+                        color = item.color ?: LocalLogMeowTheme.current.textSecondary
                     )
                 }
             }

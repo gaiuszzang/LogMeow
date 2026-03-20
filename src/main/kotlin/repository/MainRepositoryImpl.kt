@@ -1,5 +1,6 @@
 package repository
 
+import data.AppSettings
 import data.DeepLinkHistory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,10 +25,15 @@ class MainRepositoryImpl : MainRepository {
     private val historyFile: File
         get() = File(logMeowDir, "deeplink_history.json")
 
+    private val settingsFile: File
+        get() = File(logMeowDir, "settings.json")
+
     private val _deepLinkHistoryFlow: MutableStateFlow<DeepLinkHistory>
+    private val _settingsFlow: MutableStateFlow<AppSettings>
 
     init {
         _deepLinkHistoryFlow = MutableStateFlow(loadHistory())
+        _settingsFlow = MutableStateFlow(loadSettings())
     }
 
     override fun updateDeepLinkHistory(history: DeepLinkHistory) {
@@ -45,6 +51,21 @@ class MainRepositoryImpl : MainRepository {
         return _deepLinkHistoryFlow.asStateFlow()
     }
 
+    override fun updateSettings(settings: AppSettings) {
+        _settingsFlow.value = settings
+        scope.launch {
+            try {
+                settingsFile.writeText(json.encodeToString(AppSettings.serializer(), settings))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    override fun getSettingsFlow(): StateFlow<AppSettings> {
+        return _settingsFlow.asStateFlow()
+    }
+
     private fun loadHistory(): DeepLinkHistory {
         return try {
             if (historyFile.exists()) {
@@ -55,6 +76,19 @@ class MainRepositoryImpl : MainRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             DeepLinkHistory()
+        }
+    }
+
+    private fun loadSettings(): AppSettings {
+        return try {
+            if (settingsFile.exists()) {
+                json.decodeFromString(AppSettings.serializer(), settingsFile.readText())
+            } else {
+                AppSettings()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            AppSettings()
         }
     }
 }

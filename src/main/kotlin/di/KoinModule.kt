@@ -11,7 +11,7 @@ import vm.NetworkInspectorViewModel
 val appModule = module {
     single { AdbService() }
     single<MainRepository> { MainRepositoryImpl() }
-    single { MainViewModel(get()) }
+    single { MainViewModel(get(), get()) }
     factory { (deviceId: String) -> DeepLinkPopupViewModel(get(), deviceId, get()) }
     factory { (deviceId: String) -> NetworkInspectorViewModel(get(), deviceId) }
 }

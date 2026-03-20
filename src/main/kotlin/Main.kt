@@ -1,6 +1,7 @@
 import adb.AdbService
 import adb.data.AdbDevice
 import adb.data.AdbDeviceState
+import repository.MainRepositoryImpl
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
@@ -58,7 +59,7 @@ fun AppPreview() {
         )
     }
     // Create the ViewModel with the dummy service
-    val previewViewModel = MainViewModel(dummyAdbService)
+    val previewViewModel = MainViewModel(dummyAdbService, MainRepositoryImpl())
     // We need to manually clear it, although for a preview it's not critical
     previewViewModel.onCleared()
     

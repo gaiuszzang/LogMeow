@@ -53,9 +53,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ui.common.LazyListScrollBar
-import ui.common.LogMeowColors
+import ui.theme.LocalLogMeowTheme
 import vm.DisplayMode
 import vm.UiState
 
@@ -126,20 +125,21 @@ fun LogCatView(
         }
     }
 
+    val theme = LocalLogMeowTheme.current
     if (filteredLogs.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(LogMeowColors.PanelBackground),
+                .background(theme.panelBackground),
             contentAlignment = Alignment.Center
         ) {
-            Text("Logs will appear here...", fontSize = 12.sp)
+            Text("Logs will appear here...", fontSize = theme.fontSizeBody)
         }
     } else {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(LogMeowColors.PanelBackground)
+                .background(theme.panelBackground)
                 .focusRequester(focusRequester)
                 .onFocusChanged { isFocused = it.hasFocus }
                 .focusable()
@@ -296,8 +296,8 @@ fun LogCatView(
                 state = listState,
                 direction = ui.common.Direction.Vertical,
                 thickness = 12.dp,
-                color = Color.Gray,
-                backgroundColor = Color.DarkGray,
+                color = theme.scrollbarThumb,
+                backgroundColor = theme.scrollbarTrack,
                 isAlwaysDisplay = true,
                 bookmarkedIndices = uiState.bookmarkedIndicesInFilteredLogs,
                 totalItemCount = filteredLogs.size
@@ -320,23 +320,24 @@ private fun LogRow(
     var isHovered by remember { mutableStateOf(false) }
     var lastClickTime by remember { mutableStateOf(0L) }
 
+    val theme = LocalLogMeowTheme.current
     val logColor = when (log.level) {
-        LogLevel.VERBOSE -> Color.Gray
-        LogLevel.DEBUG -> Color(0xFF3D95C3) // Blue
-        LogLevel.INFO -> Color(0xFF4A9B50) // Green
-        LogLevel.WARN -> Color(0xFFC88235) // Orange
-        LogLevel.ERROR, LogLevel.FATAL -> Color.Red
+        LogLevel.VERBOSE -> theme.logVerbose
+        LogLevel.DEBUG -> theme.logDebug
+        LogLevel.INFO -> theme.logInfo
+        LogLevel.WARN -> theme.logWarn
+        LogLevel.ERROR, LogLevel.FATAL -> theme.logError
     }
 
     val rowBackgroundColor = when {
-        log.isSelected && log.isBookmarked && isListFocused -> Color(0xFF4A3D2A)
-        log.isSelected && log.isBookmarked -> Color(0xFF5C4A1A)
-        log.isSelected && isListFocused -> LogMeowColors.SelectedFocused
-        log.isSelected -> LogMeowColors.SelectedUnfocused
-        log.isBookmarked && isHovered -> Color(0xFF4A3D15)
-        log.isBookmarked -> Color(0xFF3D3312)
-        isHovered -> LogMeowColors.TextSelectionHoverBackground
-        else -> LogMeowColors.PanelBackground
+        log.isSelected && log.isBookmarked && isListFocused -> theme.selectedBookmarkFocused
+        log.isSelected && log.isBookmarked -> theme.selectedBookmarkUnfocused
+        log.isSelected && isListFocused -> theme.selectedFocused
+        log.isSelected -> theme.selectedUnfocused
+        log.isBookmarked && isHovered -> theme.bookmarkHoverBackground
+        log.isBookmarked -> theme.bookmarkBackground
+        isHovered -> theme.textSelectionHoverBackground
+        else -> theme.panelBackground
     }
 
     Row(
@@ -395,11 +396,12 @@ private fun RowScope.FullLogRowContent(
     filterMessage: String?,
     logColor: Color
 ) {
+    val theme = LocalLogMeowTheme.current
     // Timestamp
     Text(
         text = log.timestamp,
-        color = Color.Gray,
-        fontSize = 12.sp,
+        color = theme.textDim,
+        fontSize = theme.fontSizeBody,
         fontFamily = FontFamily.Monospace,
         maxLines = 1,
         minLines = 1,
@@ -411,7 +413,7 @@ private fun RowScope.FullLogRowContent(
     Text(
         text = log.level.name.first().toString(),
         color = logColor,
-        fontSize = 12.sp,
+        fontSize = theme.fontSizeBody,
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Monospace,
         modifier = Modifier.width(30.dp)
@@ -420,8 +422,8 @@ private fun RowScope.FullLogRowContent(
     // PID
     Text(
         text = log.pid.toString(),
-        color = Color.Gray,
-        fontSize = 12.sp,
+        color = theme.textDim,
+        fontSize = theme.fontSizeBody,
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Monospace,
         maxLines = 1,
@@ -433,8 +435,8 @@ private fun RowScope.FullLogRowContent(
     // TID
     Text(
         text = log.tid.toString(),
-        color = Color.Gray,
-        fontSize = 12.sp,
+        color = theme.textDim,
+        fontSize = theme.fontSizeBody,
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Monospace,
         maxLines = 1,
@@ -448,7 +450,7 @@ private fun RowScope.FullLogRowContent(
         if (!filterTag.isNullOrBlank()) {
             Text(
                 text = buildHighlightedText(log.tag, filterTag, MaterialTheme.colors.onSurface.copy(alpha = 0.8f)),
-                fontSize = 12.sp,
+                fontSize = theme.fontSizeBody,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
@@ -459,7 +461,7 @@ private fun RowScope.FullLogRowContent(
             Text(
                 text = log.tag,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
-                fontSize = 12.sp,
+                fontSize = theme.fontSizeBody,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
@@ -480,10 +482,11 @@ private fun MessageText(
     logColor: Color,
     modifier: Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     if (!filterMessage.isNullOrBlank()) {
         Text(
             text = buildHighlightedText(message, filterMessage, logColor),
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             fontFamily = FontFamily.Monospace,
             modifier = modifier
         )
@@ -491,7 +494,7 @@ private fun MessageText(
         Text(
             text = message,
             color = logColor,
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             fontFamily = FontFamily.Monospace,
             modifier = modifier
         )
@@ -504,6 +507,7 @@ private fun buildHighlightedText(
     filter: String,
     baseColor: Color
 ) = buildAnnotatedString {
+    val theme = LocalLogMeowTheme.current
     val surfaceColor = MaterialTheme.colors.surface
     var currentIndex = 0
     val lowerText = text.lowercase()
@@ -524,7 +528,7 @@ private fun buildHighlightedText(
             }
             withStyle(style = SpanStyle(
                 color = surfaceColor,
-                background = Color.Yellow
+                background = theme.highlightBackground
             )) {
                 append(text.substring(matchIndex, matchIndex + filter.length))
             }

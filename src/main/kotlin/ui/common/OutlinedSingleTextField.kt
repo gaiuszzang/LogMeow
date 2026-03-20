@@ -6,12 +6,12 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
+
+import ui.theme.LocalLogMeowTheme
 
 @Composable
 fun OutlinedSingleTextField(
@@ -24,31 +24,32 @@ fun OutlinedSingleTextField(
     fontFamily: FontFamily? = null,
     readOnly: Boolean = false
 ) {
+    val theme = LocalLogMeowTheme.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = if (label.isNotEmpty()) {
-            { Text(label, fontSize = 11.sp) }
+            { Text(label, fontSize = theme.fontSizeLabel) }
         } else null,
         modifier = modifier.defaultMinSize(minHeight = 40.dp),
         singleLine = singleLine,
         isError = isError,
         readOnly = readOnly,
         textStyle = TextStyle(
-            fontSize = 13.sp,
+            fontSize = theme.fontSizeTitle,
             lineHeight = 1.5.em,
-            color = if (readOnly) Color.LightGray else Color.White,
+            color = if (readOnly) theme.textSecondary else theme.textPrimary,
             fontFamily = fontFamily
         ),
         colors = TextFieldDefaults.outlinedTextFieldColors(
-            textColor = if (readOnly) Color.LightGray else Color.White,
-            cursorColor = LogMeowColors.Accent,
-            focusedBorderColor = if (readOnly) Color.DarkGray else LogMeowColors.Accent,
-            unfocusedBorderColor = Color.DarkGray,
-            errorBorderColor = LogMeowColors.Danger,
-            focusedLabelColor = if (readOnly) Color.Gray else LogMeowColors.Accent,
-            unfocusedLabelColor = Color.Gray,
-            backgroundColor = if (readOnly) LogMeowColors.PanelBackground else LogMeowColors.EditFieldBackground
+            textColor = if (readOnly) theme.textSecondary else theme.textPrimary,
+            cursorColor = theme.accent,
+            focusedBorderColor = if (readOnly) theme.border else theme.accent,
+            unfocusedBorderColor = theme.border,
+            errorBorderColor = theme.danger,
+            focusedLabelColor = if (readOnly) theme.textDim else theme.accent,
+            unfocusedLabelColor = theme.textDim,
+            backgroundColor = if (readOnly) theme.panelBackground else theme.editFieldBackground
         )
     )
 }

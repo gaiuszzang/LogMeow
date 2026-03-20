@@ -4,6 +4,7 @@ import adb.AdbService
 import adb.data.AdbDevice
 import adb.data.LogLevel
 import adb.data.LogcatMessage
+import repository.MainRepository
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -44,7 +45,8 @@ data class UiState(
 )
 
 class MainViewModel(
-    private val adbService: AdbService
+    private val adbService: AdbService,
+    private val repository: MainRepository
 ) {
 
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -72,6 +74,13 @@ class MainViewModel(
     // Network Inspector popup state
     private val _isNetworkInspectorVisible = MutableStateFlow(false)
     val isNetworkInspectorVisible = _isNetworkInspectorVisible.asStateFlow()
+
+    // Settings popup state
+    private val _isSettingsVisible = MutableStateFlow(false)
+    val isSettingsVisible = _isSettingsVisible.asStateFlow()
+
+    // Settings
+    val settingsFlow = repository.getSettingsFlow()
 
     // Logcat messages state (private - only managed internally)
     private var allLogs = mutableListOf<LogcatMessage>()
@@ -201,6 +210,19 @@ class MainViewModel(
 
     fun hideNetworkInspector() {
         _isNetworkInspectorVisible.value = false
+    }
+
+    fun showSettings() {
+        _isSettingsVisible.value = true
+    }
+
+    fun hideSettings() {
+        _isSettingsVisible.value = false
+    }
+
+    fun updateTheme(themeName: String) {
+        val current = repository.getSettingsFlow().value
+        repository.updateSettings(current.copy(themeName = themeName))
     }
 
     private fun startScreenRecording() {

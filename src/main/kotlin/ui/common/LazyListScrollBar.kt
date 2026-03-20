@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import ui.theme.LocalLogMeowTheme
 
 enum class Direction { Vertical, Horizontal }
 
@@ -41,7 +42,7 @@ fun BoxScope.LazyListScrollBar(
     direction: Direction,
     thickness: Dp = 4.dp,
     minLength: Dp = 16.dp,
-    color: Color = Color.Gray,
+    color: Color = LocalLogMeowTheme.current.scrollbarThumb,
     backgroundColor: Color = Color.Transparent,
     isAlwaysDisplay: Boolean = false,
     bookmarkedIndices: List<Int> = emptyList(),
@@ -204,8 +205,11 @@ fun BoxScope.LazyListScrollBar(
                     }
                 }
         ) {
+            val bookmarkMarkerColor = LocalLogMeowTheme.current.bookmarkMarker
+            val scrollbarCornerRadius = with(this@with) {
+                LocalLogMeowTheme.current.cornerRadiusSmall.toPx()
+            }
             Canvas(modifier = Modifier.matchParentSize()) {
-                val bookmarkMarkerColor = Color(0xFFE6A817) // Golden/amber color for bookmarks
                 val markerThickness = 2.dp.toPx()
                 val effectiveTotalItems = if (totalItemCount > 0) totalItemCount else layoutInfo.totalItemsCount
 
@@ -214,7 +218,7 @@ fun BoxScope.LazyListScrollBar(
                     drawRoundRect(
                         topLeft = Offset(0f, 0f),
                         size = Size(thicknessPx, size.height),
-                        cornerRadius = CornerRadius(thicknessPx / 2f),
+                        cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = backgroundColor,
                         alpha = alpha
                     )
@@ -223,7 +227,7 @@ fun BoxScope.LazyListScrollBar(
                     drawRoundRect(
                         topLeft = Offset(0f, scrollOffsetPx),
                         size = Size(thicknessPx, scrollbarHeightPx),
-                        cornerRadius = CornerRadius(thicknessPx / 2f),
+                        cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = color,
                         alpha = alpha
                     )
@@ -245,7 +249,7 @@ fun BoxScope.LazyListScrollBar(
                     drawRoundRect(
                         topLeft = Offset(0f, 0f),
                         size = Size(size.width, thicknessPx),
-                        cornerRadius = CornerRadius(thicknessPx / 2f),
+                        cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = backgroundColor,
                         alpha = alpha
                     )
@@ -254,7 +258,7 @@ fun BoxScope.LazyListScrollBar(
                     drawRoundRect(
                         topLeft = Offset(scrollOffsetPx, 0f),
                         size = Size(scrollbarHeightPx, thicknessPx),
-                        cornerRadius = CornerRadius(thicknessPx / 2f),
+                        cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = color,
                         alpha = alpha
                     )

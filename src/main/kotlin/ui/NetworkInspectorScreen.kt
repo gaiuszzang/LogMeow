@@ -62,7 +62,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
@@ -71,18 +70,20 @@ import network.data.NetworkTrafficEntry
 import ui.common.Direction
 import ui.common.LazyListScrollBar
 import io.groovin.logmeow.interceptor.ResponseType
-import ui.common.AppTheme
+import ui.theme.AppTheme
 import ui.common.ContextDropdownMenu
 import ui.common.DarkMenuItem
 import ui.common.DragHandle
 import ui.common.DropDownButton
-import ui.common.LogMeowColors
+import ui.theme.LocalLogMeowTheme
+import ui.theme.LogMeowTheme
 import vm.NetworkInspectorUiState
 import vm.NetworkInspectorViewModel
 
 @Composable
 fun NetworkInspectorScreen(
     viewModel: NetworkInspectorViewModel,
+    theme: LogMeowTheme,
     onDismiss: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -100,10 +101,11 @@ fun NetworkInspectorScreen(
             position = WindowPosition.Aligned(Alignment.Center)
         )
     ) {
-        AppTheme {
+        AppTheme(theme = theme) {
+            val theme = LocalLogMeowTheme.current
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = LogMeowColors.DarkBackground
+                color = theme.darkBackground
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     TopBar(
@@ -165,9 +167,9 @@ fun NetworkInspectorScreen(
                             // Request title
                             Text(
                                 text = "Request",
-                                fontSize = 12.sp,
+                                fontSize = theme.fontSizeBody,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White,
+                                color = theme.textPrimary,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                             RequestDetailPanel(
@@ -192,9 +194,9 @@ fun NetworkInspectorScreen(
                             // Response title
                             Text(
                                 text = "Response",
-                                fontSize = 12.sp,
+                                fontSize = theme.fontSizeBody,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White,
+                                color = theme.textPrimary,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                             ResponseDetailPanel(
@@ -238,6 +240,7 @@ private fun TopBar(
     onRefresh: () -> Unit,
     mockSupportEnabled: Boolean = true
 ) {
+    val theme = LocalLogMeowTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -258,13 +261,13 @@ private fun TopBar(
             onClick = onMockApi,
             enabled = selectedAppId != null && mockSupportEnabled,
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = LogMeowColors.ButtonBackground,
-                contentColor = Color.White,
-                disabledBackgroundColor = LogMeowColors.DisabledBackground,
-                disabledContentColor = Color.Gray
+                backgroundColor = theme.buttonBackground,
+                contentColor = theme.textPrimary,
+                disabledBackgroundColor = theme.disabledBackground,
+                disabledContentColor = theme.textDim
             )
         ) {
-            Text("Mock API", fontSize = 12.sp)
+            Text("Mock API", fontSize = theme.fontSizeBody)
         }
 
         Spacer(Modifier.width(8.dp))
@@ -272,11 +275,11 @@ private fun TopBar(
         Button(
             onClick = onClear,
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = LogMeowColors.ButtonBackground,
-                contentColor = Color.White
+                backgroundColor = theme.buttonBackground,
+                contentColor = theme.textPrimary
             )
         ) {
-            Text("Clear", fontSize = 12.sp)
+            Text("Clear", fontSize = theme.fontSizeBody)
         }
 
         Spacer(Modifier.width(8.dp))
@@ -284,11 +287,11 @@ private fun TopBar(
         Button(
             onClick = onRefresh,
             colors = ButtonDefaults.buttonColors(
-                backgroundColor = LogMeowColors.ButtonBackground,
-                contentColor = Color.White
+                backgroundColor = theme.buttonBackground,
+                contentColor = theme.textPrimary
             )
         ) {
-            Text("Refresh", fontSize = 12.sp)
+            Text("Refresh", fontSize = theme.fontSizeBody)
         }
     }
 }
@@ -299,6 +302,7 @@ private fun AppSelector(
     selectedAppId: String?,
     onSelectApp: (String) -> Unit
 ) {
+    val theme = LocalLogMeowTheme.current
     var expanded by remember { mutableStateOf(false) }
     val displayText = if (connectedApps.isEmpty()) {
         "[ No Apps ]"
@@ -324,7 +328,7 @@ private fun AppSelector(
                 }) {
                     Text(
                         text = appId,
-                        fontSize = 12.sp,
+                        fontSize = theme.fontSizeBody,
                         fontWeight = if (appId == selectedAppId) FontWeight.Bold else FontWeight.Normal
                     )
                 }
@@ -343,6 +347,7 @@ private fun TrafficList(
     mockSupportEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -351,16 +356,16 @@ private fun TrafficList(
     Column(modifier = modifier) {
         Text(
             text = "Traffic (${trafficList.size})",
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             fontWeight = FontWeight.Medium,
-            color = Color.White,
+            color = theme.textPrimary,
             modifier = Modifier.padding(bottom = 4.dp)
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-                .background(LogMeowColors.PanelBackground)
+                .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+                .background(theme.panelBackground)
         ) {
             LazyColumn(
                 state = listState,
@@ -439,8 +444,8 @@ private fun TrafficList(
                 state = listState,
                 direction = Direction.Vertical,
                 thickness = 8.dp,
-                color = Color.Gray,
-                backgroundColor = Color.DarkGray,
+                color = theme.scrollbarThumb,
+                backgroundColor = theme.scrollbarTrack,
             )
         }
     }
@@ -456,13 +461,14 @@ private fun TrafficItem(
     onMockApi: () -> Unit,
     mockSupportEnabled: Boolean
 ) {
+    val theme = LocalLogMeowTheme.current
     val backgroundColor = when {
-        isSelected && isFocused -> LogMeowColors.SelectedFocused
-        isSelected -> LogMeowColors.SelectedUnfocused
+        isSelected && isFocused -> theme.selectedFocused
+        isSelected -> theme.selectedUnfocused
         else -> Color.Transparent
     }
-    val methodColor = LogMeowColors.methodColor(entry.method)
-    val statusColor = LogMeowColors.statusCodeColor(entry.statusCode)
+    val methodColor = theme.methodColor(entry.method)
+    val statusColor = theme.statusCodeColor(entry.statusCode)
 
     ContextDropdownMenu(
         items = {
@@ -470,7 +476,7 @@ private fun TrafficItem(
                 if (mockSupportEnabled) {
                     add(DarkMenuItem("Add to Mock API") { onMockApi() })
                 }
-                add(DarkMenuItem("Delete", color = LogMeowColors.Danger) { onDelete() })
+                add(DarkMenuItem("Delete", color = theme.danger) { onDelete() })
             }
         }
     ) {
@@ -485,14 +491,14 @@ private fun TrafficItem(
         ) {
             Text(
                 text = entry.method,
-                fontSize = 11.sp,
+                fontSize = theme.fontSizeLabel,
                 fontWeight = FontWeight.Bold,
                 color = methodColor,
                 modifier = Modifier.width(60.dp)
             )
             Text(
                 text = entry.statusCode?.toString() ?: "...",
-                fontSize = 11.sp,
+                fontSize = theme.fontSizeLabel,
                 color = statusColor,
                 modifier = Modifier.width(32.dp)
             )
@@ -500,19 +506,19 @@ private fun TrafficItem(
             if (entry.responseType == ResponseType.MOCK) {
                 Text(
                     text = "M",
-                    fontSize = 10.sp,
+                    fontSize = theme.fontSizeBadge,
                     fontWeight = FontWeight.Bold,
-                    color = LogMeowColors.Warning,
+                    color = theme.warning,
                     modifier = Modifier
-                        .background(LogMeowColors.MockBadgeBackground, RoundedCornerShape(2.dp))
+                        .background(theme.mockBadgeBackground, RoundedCornerShape(theme.cornerRadiusSmall))
                         .padding(horizontal = 3.dp)
                 )
                 Spacer(Modifier.width(4.dp))
             }
             Text(
                 text = entry.path,
-                fontSize = 12.sp,
-                color = Color.LightGray,
+                fontSize = theme.fontSizeBody,
+                color = theme.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -520,8 +526,8 @@ private fun TrafficItem(
             if (entry.durationMs != null) {
                 Text(
                     text = "${entry.durationMs}ms",
-                    fontSize = 11.sp,
-                    color = Color.Gray
+                    fontSize = theme.fontSizeLabel,
+                    color = theme.textDim
                 )
             }
         }
@@ -534,14 +540,15 @@ private fun RequestDetailPanel(
     entry: NetworkTrafficEntry?,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     Column(
         modifier = modifier
-            .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-            .background(LogMeowColors.PanelBackground, RoundedCornerShape(4.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+            .background(theme.panelBackground, RoundedCornerShape(theme.cornerRadius))
     ) {
         if (entry == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Select a request", fontSize = 12.sp, color = LogMeowColors.Dim)
+                Text("Select a request", fontSize = theme.fontSizeBody, color = theme.textDim)
             }
         } else {
             SelectionContainer(
@@ -584,18 +591,19 @@ private fun ResponseDetailPanel(
     entry: NetworkTrafficEntry?,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalLogMeowTheme.current
     Column(
         modifier = modifier
-            .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-            .background(LogMeowColors.PanelBackground, RoundedCornerShape(4.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+            .background(theme.panelBackground, RoundedCornerShape(theme.cornerRadius))
     ) {
         if (entry == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Select a request", fontSize = 12.sp, color = LogMeowColors.Dim)
+                Text("Select a request", fontSize = theme.fontSizeBody, color = theme.textDim)
             }
         } else if (!entry.isCompleted) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Pending...", fontSize = 12.sp, color = LogMeowColors.Dim)
+                Text("Pending...", fontSize = theme.fontSizeBody, color = theme.textDim)
             }
         } else if (entry.error != null) {
             SelectionContainer(
@@ -605,8 +613,8 @@ private fun ResponseDetailPanel(
             ) {
                 Text(
                     text = "Error: ${entry.error}",
-                    fontSize = 12.sp,
-                    color = LogMeowColors.Danger,
+                    fontSize = theme.fontSizeBody,
+                    color = theme.danger,
                     fontFamily = FontFamily.Monospace
                 )
             }
@@ -620,10 +628,10 @@ private fun ResponseDetailPanel(
                 Column {
                     // General
                     SectionHeader("General")
-                    val statusColor = LogMeowColors.statusCodeColor(entry.statusCode)
+                    val statusColor = theme.statusCodeColor(entry.statusCode)
                     InfoRow("Status", "${entry.statusCode}", valueColor = statusColor)
                     if (entry.responseType == ResponseType.MOCK) {
-                        InfoRow("Type", "Mock Response", valueColor = LogMeowColors.Warning)
+                        InfoRow("Type", "Mock Response", valueColor = theme.warning)
                     }
                     if (entry.durationMs != null) {
                         InfoRow("Duration", "${entry.durationMs}ms")
@@ -654,32 +662,34 @@ private fun ResponseDetailPanel(
 
 @Composable
 private fun SectionHeader(title: String) {
+    val theme = LocalLogMeowTheme.current
     Column {
         Text(
             text = title,
-            fontSize = 13.sp,
+            fontSize = theme.fontSizeTitle,
             fontWeight = FontWeight.SemiBold,
-            color = LogMeowColors.Accent,
+            color = theme.accent,
             modifier = Modifier.padding(bottom = 2.dp)
         )
-        Divider(color = LogMeowColors.Divider, thickness = 1.dp)
+        Divider(color = theme.divider, thickness = 1.dp)
         Spacer(Modifier.height(4.dp))
     }
 }
 
 @Composable
-private fun InfoRow(label: String, value: String, valueColor: Color = LogMeowColors.HeaderValue) {
+private fun InfoRow(label: String, value: String, valueColor: Color = LocalLogMeowTheme.current.headerValue) {
+    val theme = LocalLogMeowTheme.current
     Row(modifier = Modifier.padding(vertical = 3.dp)) {
         Text(
             text = "$label: ",
-            fontSize = 12.sp,
-            color = LogMeowColors.Dim,
+            fontSize = theme.fontSizeBody,
+            color = theme.textDim,
             fontFamily = FontFamily.Monospace,
             lineHeight = 1.5.em
         )
         Text(
             text = value,
-            fontSize = 12.sp,
+            fontSize = theme.fontSizeBody,
             color = valueColor,
             fontFamily = FontFamily.Monospace,
             lineHeight = 1.5.em
@@ -689,28 +699,29 @@ private fun InfoRow(label: String, value: String, valueColor: Color = LogMeowCol
 
 @Composable
 private fun HeadersTable(headers: Map<String, String>) {
+    val theme = LocalLogMeowTheme.current
     Column {
         headers.forEach { (key, value) ->
             Row(modifier = Modifier.padding(vertical = 3.dp)) {
                 Text(
                     text = key,
-                    fontSize = 12.sp,
+                    fontSize = theme.fontSizeBody,
                     fontWeight = FontWeight.Medium,
-                    color = LogMeowColors.HeaderKey,
+                    color = theme.headerKey,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 1.5.em
                 )
                 Text(
                     text = ": ",
-                    fontSize = 12.sp,
-                    color = LogMeowColors.Dim,
+                    fontSize = theme.fontSizeBody,
+                    color = theme.textDim,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 1.5.em
                 )
                 Text(
                     text = value,
-                    fontSize = 12.sp,
-                    color = LogMeowColors.HeaderValue,
+                    fontSize = theme.fontSizeBody,
+                    color = theme.headerValue,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 1.5.em
                 )
@@ -726,6 +737,7 @@ private fun isJsonBody(body: String): Boolean {
 
 @Composable
 private fun BodySection(body: String) {
+    val theme = LocalLogMeowTheme.current
     val isJson = isJsonBody(body)
     var prettyEnabled by remember { mutableStateOf(true) }
 
@@ -734,9 +746,9 @@ private fun BodySection(body: String) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Body",
-                fontSize = 13.sp,
+                fontSize = theme.fontSizeTitle,
                 fontWeight = FontWeight.SemiBold,
-                color = LogMeowColors.Accent,
+                color = theme.accent,
                 modifier = Modifier.padding(bottom = 2.dp)
             )
             if (isJson) {
@@ -746,36 +758,36 @@ private fun BodySection(body: String) {
                         checked = prettyEnabled,
                         onCheckedChange = { prettyEnabled = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = LogMeowColors.Accent,
-                            uncheckedColor = Color.Gray,
-                            checkmarkColor = Color.White
+                            checkedColor = theme.accent,
+                            uncheckedColor = theme.textDim,
+                            checkmarkColor = theme.textPrimary
                         ),
                         modifier = Modifier.size(14.dp).scale(0.75f)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "Pretty Json",
-                        fontSize = 11.sp,
-                        color = Color.Gray,
+                        fontSize = theme.fontSizeLabel,
+                        color = theme.textDim,
                         modifier = Modifier.clickable { prettyEnabled = !prettyEnabled }
                     )
                 }
             }
         }
-        Divider(color = LogMeowColors.Divider, thickness = 1.dp)
+        Divider(color = theme.divider, thickness = 1.dp)
         Spacer(Modifier.height(4.dp))
     }
 
     val displayText = if (isJson && prettyEnabled) tryFormatJson(body) else body
     Text(
         text = displayText,
-        fontSize = 12.sp,
-        color = Color.LightGray,
+        fontSize = theme.fontSizeBody,
+        color = theme.textSecondary,
         fontFamily = FontFamily.Monospace,
         lineHeight = 1.6.em,
         modifier = Modifier
             .fillMaxWidth()
-            .background(LogMeowColors.BodyBackground, RoundedCornerShape(4.dp))
+            .background(theme.bodyBackground, RoundedCornerShape(theme.cornerRadius))
             .padding(8.dp)
     )
 }
@@ -802,6 +814,7 @@ private fun StatusBar(
     serverPort: Int,
     connectedAppCount: Int
 ) {
+    val theme = LocalLogMeowTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -816,22 +829,22 @@ private fun StatusBar(
                     .width(8.dp)
                     .height(8.dp)
                     .background(
-                        if (isServerRunning) LogMeowColors.ServerRunning else Color.Gray,
-                        RoundedCornerShape(4.dp)
+                        if (isServerRunning) theme.serverRunning else theme.textDim,
+                        RoundedCornerShape(theme.cornerRadius)
                     )
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = if (isServerRunning) "Listening on :$serverPort" else "Server stopped",
-                fontSize = 11.sp,
-                color = Color.LightGray
+                fontSize = theme.fontSizeLabel,
+                color = theme.textSecondary
             )
         }
         if (connectedAppCount > 0) {
             Text(
                 text = "Connected: $connectedAppCount",
-                fontSize = 11.sp,
-                color = LogMeowColors.Success
+                fontSize = theme.fontSizeLabel,
+                color = theme.success
             )
         }
     }

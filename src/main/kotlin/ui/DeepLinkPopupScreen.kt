@@ -31,12 +31,14 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
-import ui.common.AppTheme
+import ui.theme.AppTheme
 import ui.common.IconButton
+import ui.theme.LocalLogMeowTheme
+import ui.theme.LogMeowTheme
 import ui.common.SingleLineTextField
 import ui.icons.DeleteIcon
 import vm.DeepLinkPopupViewModel
@@ -44,6 +46,7 @@ import vm.DeepLinkPopupViewModel
 @Composable
 fun DeepLinkPopupScreen(
     viewModel: DeepLinkPopupViewModel,
+    theme: LogMeowTheme,
     onDismiss: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,10 +60,11 @@ fun DeepLinkPopupScreen(
             position = WindowPosition.Aligned(Alignment.Center)
         )
     ) {
-        AppTheme {
+        AppTheme(theme = theme) {
+            val theme = LocalLogMeowTheme.current
             Surface(
                 modifier = Modifier.padding(16.dp),
-                color = Color(0xFF2B2B2B)
+                color = theme.darkBackground
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp)
@@ -72,8 +76,8 @@ fun DeepLinkPopupScreen(
                     ) {
                         Text(
                             text = "DeepLink:",
-                            fontSize = 14.sp,
-                            color = Color.White
+                            fontSize = theme.fontSizeHeader,
+                            color = theme.textPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         SingleLineTextField(
@@ -86,10 +90,10 @@ fun DeepLinkPopupScreen(
                             onClick = { viewModel.executeDeepLink() },
                             enabled = uiState.inputText.isNotBlank(),
                             colors = ButtonDefaults.buttonColors(
-                                backgroundColor =  Color(0xFF4A4A4A),
-                                contentColor = Color.White,
-                                disabledBackgroundColor = Color(0xFF2E2E2E),
-                                disabledContentColor = Color(0xFF666666)
+                                backgroundColor = theme.buttonBackground,
+                                contentColor = theme.textPrimary,
+                                disabledBackgroundColor = theme.disabledBackground,
+                                disabledContentColor = theme.disabledContentColor
                             )
                         ) {
                             Text("Execute")
@@ -101,9 +105,9 @@ fun DeepLinkPopupScreen(
                     // History Title
                     Text(
                         text = "DeepLink History",
-                        fontSize = 14.sp,
+                        fontSize = theme.fontSizeHeader,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = theme.textPrimary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -113,8 +117,8 @@ fun DeepLinkPopupScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .border(1.dp, Color.DarkGray, RoundedCornerShape(4.dp))
-                            .background(Color(0xFF1E1E1E))
+                            .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
+                            .background(theme.panelBackground)
                     ) {
                         itemsIndexed(uiState.history) { index, scheme ->
                             HistoryItem(
@@ -143,9 +147,10 @@ private fun HistoryItem(
     var isHovered by remember { mutableStateOf(false) }
     var lastClickTime by remember { mutableStateOf(0L) }
 
+    val theme = LocalLogMeowTheme.current
     val backgroundColor = when {
-        isSelected -> Color(0xFF4A4A4A)
-        isHovered -> Color(0xFF3A3A3A)
+        isSelected -> theme.selectedUnfocused
+        isHovered -> theme.textSelectionHoverBackground
         else -> Color.Transparent
     }
     Row(
@@ -179,8 +184,8 @@ private fun HistoryItem(
     ) {
         Text(
             text = scheme,
-            fontSize = 12.sp,
-            color = Color.LightGray,
+            fontSize = theme.fontSizeBody,
+            color = theme.textSecondary,
             modifier = Modifier.weight(1f)
         )
         if (isSelected) {

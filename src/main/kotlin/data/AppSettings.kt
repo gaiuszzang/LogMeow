@@ -4,5 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class AppSettings(
-    val themeName: String = "IslandsDark"
+    val themeName: String = "IslandsDark",
+    val maxLogCount: Int = 200_000
 )

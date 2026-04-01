@@ -446,6 +446,7 @@ private fun TrafficList(
                 thickness = 8.dp,
                 color = theme.scrollbarThumb,
                 backgroundColor = theme.scrollbarTrack,
+                isAlwaysDisplay = true,
             )
         }
     }

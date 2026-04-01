@@ -225,6 +225,11 @@ class MainViewModel(
         repository.updateSettings(current.copy(themeName = themeName))
     }
 
+    fun updateMaxLogCount(maxLogCount: Int) {
+        val current = repository.getSettingsFlow().value
+        repository.updateSettings(current.copy(maxLogCount = maxLogCount))
+    }
+
     private fun startScreenRecording() {
         val deviceId = _selectedDevice.value?.id ?: return
 
@@ -311,6 +316,15 @@ class MainViewModel(
     private fun appendNewLog(logMessage: LogcatMessage) {
         // add log into All Logs
         allLogs.add(logMessage)
+
+        // trim oldest logs if exceeding maxLogCount
+        val maxLogCount = repository.getSettingsFlow().value.maxLogCount
+        if (maxLogCount > 0 && allLogs.size > maxLogCount) {
+            val removeCount = allLogs.size - maxLogCount
+            allLogs.subList(0, removeCount).clear()
+            updateFilteredLogs()
+            return
+        }
 
         // add log to ui as filtered condition
         val currentState = _uiState.value

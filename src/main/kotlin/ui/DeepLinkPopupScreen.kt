@@ -158,7 +158,7 @@ private fun HistoryItem(
             .fillMaxWidth()
             .height(24.dp)
             .background(backgroundColor)
-            .pointerInput(Unit) {
+            .pointerInput(scheme) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()

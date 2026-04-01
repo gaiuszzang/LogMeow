@@ -532,6 +532,7 @@ private fun MockApiList(
                 thickness = 8.dp,
                 color = theme.textDim,
                 backgroundColor = theme.border,
+                isAlwaysDisplay = true,
             )
         }
     }

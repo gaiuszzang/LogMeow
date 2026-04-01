@@ -40,7 +40,7 @@ import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -106,7 +106,7 @@ fun MainScreen(
                 .padding(8.dp)
                 .focusRequester(focusRequester)
                 .focusTarget()
-                .onPreviewKeyEvent { keyEvent ->
+                .onKeyEvent { keyEvent ->
                     if (keyEvent.type == KeyEventType.KeyDown) {
                         when {
                             // Handle Cmd+C (macOS) or Ctrl+C (Windows/Linux)
@@ -458,7 +458,9 @@ fun MainScreen(
             SettingsPopupScreen(
                 theme = themeByName(settings.themeName),
                 currentThemeName = settings.themeName,
+                currentMaxLogCount = settings.maxLogCount,
                 onThemeChange = { viewModel.updateTheme(it) },
+                onMaxLogCountChange = { viewModel.updateMaxLogCount(it) },
                 onDismiss = { viewModel.hideSettings() }
             )
         }

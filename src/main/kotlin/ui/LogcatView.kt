@@ -237,7 +237,7 @@ fun LogCatView(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(end = 12.dp)
+                    .padding(end = 8.dp)
                     .pointerInput(filteredLogs) {
                         containerHeight = size.height.toFloat()
                         awaitPointerEventScope {
@@ -295,7 +295,7 @@ fun LogCatView(
             LazyListScrollBar(
                 state = listState,
                 direction = ui.common.Direction.Vertical,
-                thickness = 12.dp,
+                thickness = 8.dp,
                 color = theme.scrollbarThumb,
                 backgroundColor = theme.scrollbarTrack,
                 isAlwaysDisplay = true,

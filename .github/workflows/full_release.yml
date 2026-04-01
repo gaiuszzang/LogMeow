@@ -2,6 +2,15 @@ name: Full Release
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_desktop:
+        description: 'Deploy Desktop App (DMG)'
+        type: boolean
+        default: true
+      deploy_library:
+        description: 'Deploy Interceptor Library (Maven Central)'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -11,8 +20,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-inputs:
+    name: Validate inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check at least one deploy target is selected
+        shell: bash
+        run: |
+          if [[ "${{ inputs.deploy_desktop }}" != "true" && "${{ inputs.deploy_library }}" != "true" ]]; then
+            echo "::error::At least one deploy target must be selected."
+            exit 1
+          fi
+          echo "Deploy Desktop: ${{ inputs.deploy_desktop }}"
+          echo "Deploy Library: ${{ inputs.deploy_library }}"
+
   check-tag:
     name: Check tag availability
+    needs: validate-inputs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -38,6 +63,7 @@ jobs:
   build-dmg:
     name: Build macOS DMG (Apple Silicon)
     needs: check-tag
+    if: inputs.deploy_desktop
     runs-on: macos-14
     timeout-minutes: 30
     steps:
@@ -68,6 +94,7 @@ jobs:
   publish-library:
     name: Publish to Maven Central
     needs: check-tag
+    if: inputs.deploy_library
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -126,6 +153,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-dmg, publish-library]
+    if: always() && needs.validate-inputs.result != 'failure' && needs.check-tag.result != 'failure' && (needs.build-dmg.result == 'success' || needs.build-dmg.result == 'skipped') && (needs.publish-library.result == 'success' || needs.publish-library.result == 'skipped') && !(needs.build-dmg.result == 'skipped' && needs.publish-library.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -144,7 +172,23 @@ jobs:
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "Release tag: ${TAG_NAME}"
 
+      - name: Build release body
+        id: body
+        shell: bash
+        run: |
+          BODY="## LogMeow ${{ steps.versions.outputs.tag_name }}"
+          if [[ "${{ inputs.deploy_desktop }}" == "true" ]]; then
+            BODY="${BODY}\n- Desktop App: v${{ steps.versions.outputs.desktop_version }}"
+          fi
+          if [[ "${{ inputs.deploy_library }}" == "true" ]]; then
+            BODY="${BODY}\n- Interceptor Library: v${{ steps.versions.outputs.library_version }}"
+          fi
+          echo "release_body<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "${BODY}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
       - name: Download DMG artifact
+        if: inputs.deploy_desktop
         uses: actions/download-artifact@v4
         with:
           name: LogMeow-dmg
@@ -155,10 +199,6 @@ jobs:
         with:
           tag_name: ${{ steps.versions.outputs.tag_name }}
           name: ${{ steps.versions.outputs.tag_name }}
-          body: |
-            ## LogMeow ${{ steps.versions.outputs.tag_name }}
-
-            - Desktop App: v${{ steps.versions.outputs.desktop_version }}
-            - Interceptor Library: v${{ steps.versions.outputs.library_version }}
+          body: ${{ steps.body.outputs.release_body }}
           files: dmg/*.dmg
           generate_release_notes: true

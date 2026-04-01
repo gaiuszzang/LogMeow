@@ -39,7 +39,7 @@ kotlin {
 val desktopAppVersion = providers.gradleProperty("DESKTOP_APP_VERSION").get()
 
 tasks.named<ProcessResources>("processResources") {
-    val versionProps = mapOf("desktop.app.version" to desktopAppVersion)
+    val versionProps = mapOf("desktop_app_version" to desktopAppVersion)
     inputs.properties(versionProps)
     filesMatching("version.properties") {
         expand(versionProps)

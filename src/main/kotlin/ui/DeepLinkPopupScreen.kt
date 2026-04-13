@@ -19,11 +19,13 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,9 +49,11 @@ import vm.DeepLinkPopupViewModel
 fun DeepLinkPopupScreen(
     viewModel: DeepLinkPopupViewModel,
     theme: LogMeowTheme,
+    focusRequest: StateFlow<Int>,
     onDismiss: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusRequestValue by focusRequest.collectAsState()
 
     Window(
         onCloseRequest = onDismiss,
@@ -60,6 +64,9 @@ fun DeepLinkPopupScreen(
             position = WindowPosition.Aligned(Alignment.Center)
         )
     ) {
+        LaunchedEffect(focusRequestValue) {
+            window.toFront()
+        }
         AppTheme(theme = theme) {
             val theme = LocalLogMeowTheme.current
             Surface(

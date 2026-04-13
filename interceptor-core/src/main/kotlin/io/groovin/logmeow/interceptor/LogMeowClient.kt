@@ -32,6 +32,9 @@ object LogMeowClient {
     // Channel for notifying the writer that new traffic arrived
     private val newTrafficSignal = Channel<Unit>(Channel.CONFLATED)
 
+    // Flag to tell the writer to reset its sentCount after a buffer clear
+    @Volatile private var bufferCleared = false
+
     private val started = AtomicBoolean(false)
 
     @Volatile var appId: String = "unknown"
@@ -61,6 +64,8 @@ object LogMeowClient {
         synchronized(bufferLock) {
             trafficBuffer.clear()
         }
+        bufferCleared = true
+        newTrafficSignal.trySend(Unit)
     }
 
     private fun getBufferSnapshot(): List<TrafficMessage> {
@@ -114,6 +119,10 @@ object LogMeowClient {
                 val writerJob = launch {
                     while (isActive) {
                         newTrafficSignal.receive()
+                        if (bufferCleared) {
+                            bufferCleared = false
+                            sentCount = 0
+                        }
                         val snapshot = getBufferSnapshot()
                         // Only send items we haven't sent yet
                         val newItems = snapshot.drop(sentCount)

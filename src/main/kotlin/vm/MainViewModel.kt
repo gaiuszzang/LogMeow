@@ -70,10 +70,14 @@ class MainViewModel(
     // DeepLink popup state
     private val _isDeepLinkPopupVisible = MutableStateFlow(false)
     val isDeepLinkPopupVisible = _isDeepLinkPopupVisible.asStateFlow()
+    private val _deepLinkFocusRequest = MutableStateFlow(0)
+    val deepLinkFocusRequest = _deepLinkFocusRequest.asStateFlow()
 
     // Network Inspector popup state
     private val _isNetworkInspectorVisible = MutableStateFlow(false)
     val isNetworkInspectorVisible = _isNetworkInspectorVisible.asStateFlow()
+    private val _networkInspectorFocusRequest = MutableStateFlow(0)
+    val networkInspectorFocusRequest = _networkInspectorFocusRequest.asStateFlow()
 
     // Settings popup state
     private val _isSettingsVisible = MutableStateFlow(false)
@@ -197,7 +201,11 @@ class MainViewModel(
     }
 
     fun showDeepLinkPopup() {
-        _isDeepLinkPopupVisible.value = true
+        if (_isDeepLinkPopupVisible.value) {
+            _deepLinkFocusRequest.value++
+        } else {
+            _isDeepLinkPopupVisible.value = true
+        }
     }
 
     fun hideDeepLinkPopup() {
@@ -205,7 +213,11 @@ class MainViewModel(
     }
 
     fun showNetworkInspector() {
-        _isNetworkInspectorVisible.value = true
+        if (_isNetworkInspectorVisible.value) {
+            _networkInspectorFocusRequest.value++
+        } else {
+            _isNetworkInspectorVisible.value = true
+        }
     }
 
     fun hideNetworkInspector() {

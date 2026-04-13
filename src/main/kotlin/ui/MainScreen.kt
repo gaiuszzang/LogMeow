@@ -433,6 +433,7 @@ fun MainScreen(
                 DeepLinkPopupScreen(
                     viewModel = deepLinkViewModel,
                     theme = themeByName(settings.themeName),
+                    focusRequest = viewModel.deepLinkFocusRequest,
                     onDismiss = { viewModel.hideDeepLinkPopup() }
                 )
             }
@@ -448,6 +449,7 @@ fun MainScreen(
                 NetworkInspectorScreen(
                     viewModel = networkViewModel,
                     theme = themeByName(settings.themeName),
+                    focusRequest = viewModel.networkInspectorFocusRequest,
                     onDismiss = { viewModel.hideNetworkInspector() }
                 )
             }

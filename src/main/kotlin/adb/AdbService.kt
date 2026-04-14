@@ -252,10 +252,15 @@ open class AdbService {
         }
     }
 
-    open suspend fun executeDeepLink(deviceId: String, scheme: String): String {
+    open suspend fun executeDeepLink(deviceId: String, scheme: String, extraArgs: String = ""): String {
         return withContext(Dispatchers.IO) {
             try {
-                val shellCommand = "am start -a android.intent.action.VIEW -d \"$scheme\""
+                val shellCommand = buildString {
+                    append("am start -a android.intent.action.VIEW -d \"$scheme\"")
+                    if (extraArgs.isNotBlank()) {
+                        append(" $extraArgs")
+                    }
+                }
                 val process = ProcessBuilder(
                     ADB_COMMAND, "-s", deviceId, "shell", shellCommand
                 ).start()

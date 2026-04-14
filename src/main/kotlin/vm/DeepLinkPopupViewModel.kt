@@ -2,6 +2,7 @@ package vm
 
 import adb.AdbService
 import data.DeepLinkHistory
+import data.DeepLinkHistoryItem
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -16,7 +17,8 @@ import repository.MainRepository
 
 data class DeepLinkUiState(
     val inputText: String = "",
-    val history: ImmutableList<String> = persistentListOf(),
+    val extraArgs: String = "",
+    val history: ImmutableList<DeepLinkHistoryItem> = persistentListOf(),
     val selectedIndex: Int? = null
 )
 
@@ -45,27 +47,32 @@ class DeepLinkPopupViewModel(
         _uiState.value = _uiState.value.copy(inputText = text)
     }
 
+    fun updateExtraArgs(text: String) {
+        _uiState.value = _uiState.value.copy(extraArgs = text)
+    }
+
     fun executeDeepLink() {
         val scheme = _uiState.value.inputText.trim()
         if (scheme.isEmpty()) return
+        val extraArgs = _uiState.value.extraArgs.trim()
 
         viewModelScope.launch {
             try {
-                adbService.executeDeepLink(deviceId, scheme)
-                addToHistory(scheme)
-                _uiState.value = _uiState.value.copy(inputText = "")
+                adbService.executeDeepLink(deviceId, scheme, extraArgs)
+                addToHistory(scheme, extraArgs)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
-    private fun addToHistory(scheme: String) {
+    private fun addToHistory(scheme: String, extraArgs: String) {
+        val item = DeepLinkHistoryItem(scheme = scheme, extraArgs = extraArgs)
         val currentHistory = _uiState.value.history.toMutableList()
-        currentHistory.remove(scheme)
-        currentHistory.add(0, scheme)
+        currentHistory.removeAll { it.scheme == scheme && it.extraArgs == extraArgs }
+        currentHistory.add(0, item)
         val newHistory = currentHistory.toImmutableList()
-        _uiState.value = _uiState.value.copy(history = newHistory, selectedIndex = null) //TODO m.c.shin 필요할까?
+        _uiState.value = _uiState.value.copy(history = newHistory, selectedIndex = null)
         mainRepository.updateDeepLinkHistory(DeepLinkHistory(list = currentHistory))
     }
 
@@ -73,13 +80,13 @@ class DeepLinkPopupViewModel(
         _uiState.value = _uiState.value.copy(selectedIndex = index)
     }
 
-    fun loadHistoryItem(scheme: String) {
-        _uiState.value = _uiState.value.copy(inputText = scheme)
+    fun loadHistoryItem(item: DeepLinkHistoryItem) {
+        _uiState.value = _uiState.value.copy(inputText = item.scheme, extraArgs = item.extraArgs)
     }
 
-    fun deleteHistoryItem(scheme: String) {
+    fun deleteHistoryItem(item: DeepLinkHistoryItem) {
         val currentHistory = _uiState.value.history.toMutableList()
-        currentHistory.remove(scheme)
+        currentHistory.removeAll { it.scheme == item.scheme && it.extraArgs == item.extraArgs }
         val newHistory = currentHistory.toImmutableList()
         _uiState.value = _uiState.value.copy(history = newHistory, selectedIndex = null)
         mainRepository.updateDeepLinkHistory(DeepLinkHistory(list = currentHistory))

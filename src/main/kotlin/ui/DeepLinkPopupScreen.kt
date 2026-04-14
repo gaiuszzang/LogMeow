@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import data.DeepLinkHistoryItem
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import ui.theme.LocalLogMeowTheme
 import ui.theme.LogMeowTheme
 import ui.common.SingleLineTextField
 import ui.icons.DeleteIcon
+import ui.icons.QuestionIcon
 import vm.DeepLinkPopupViewModel
 
 @Composable
@@ -107,7 +109,34 @@ fun DeepLinkPopupScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Additional Arguments
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Arguments:",
+                            fontSize = theme.fontSizeHeader,
+                            color = theme.textPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SingleLineTextField(
+                            value = uiState.extraArgs,
+                            onValueChange = { viewModel.updateExtraArgs(it) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            icon = QuestionIcon,
+                            modifier = Modifier.size(16.dp),
+                            tintColor = theme.textSecondary,
+                            tooltip = "Append extra adb arguments to the deep link command.\nExample: --es key \"value\" --ez flag true --ei count 5"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // History Title
                     Text(
@@ -127,13 +156,13 @@ fun DeepLinkPopupScreen(
                             .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
                             .background(theme.panelBackground)
                     ) {
-                        itemsIndexed(uiState.history) { index, scheme ->
+                        itemsIndexed(uiState.history) { index, item ->
                             HistoryItem(
-                                scheme = scheme,
+                                item = item,
                                 isSelected = uiState.selectedIndex == index,
                                 onSelect = { viewModel.selectHistoryItem(index) },
-                                onExecute = { viewModel.loadHistoryItem(scheme) },
-                                onDelete = { viewModel.deleteHistoryItem(scheme) }
+                                onExecute = { viewModel.loadHistoryItem(item) },
+                                onDelete = { viewModel.deleteHistoryItem(item) }
                             )
                         }
                     }
@@ -145,7 +174,7 @@ fun DeepLinkPopupScreen(
 
 @Composable
 private fun HistoryItem(
-    scheme: String,
+    item: DeepLinkHistoryItem,
     isSelected: Boolean,
     onSelect: () -> Unit,
     onExecute: () -> Unit,
@@ -165,7 +194,7 @@ private fun HistoryItem(
             .fillMaxWidth()
             .height(24.dp)
             .background(backgroundColor)
-            .pointerInput(scheme) {
+            .pointerInput(item) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -189,12 +218,23 @@ private fun HistoryItem(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = scheme,
-            fontSize = theme.fontSizeBody,
-            color = theme.textSecondary,
-            modifier = Modifier.weight(1f)
-        )
+        Row(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.scheme,
+                fontSize = theme.fontSizeBody,
+                color = theme.textSecondary,
+                maxLines = 1
+            )
+            if (item.extraArgs.isNotBlank()) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = item.extraArgs,
+                    fontSize = theme.fontSizeBody,
+                    color = theme.disabledContentColor,
+                    maxLines = 1
+                )
+            }
+        }
         if (isSelected) {
             IconButton(
                 modifier = Modifier.size(20.dp),

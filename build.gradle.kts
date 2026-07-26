@@ -63,6 +63,21 @@ compose.desktop {
                 if (androidHome != null) {
                     jvmArgs("-DANDROID_HOME=$androidHome")
                 }
+
+                // Unique bundle identifier required for signing & notarization
+                bundleID = "io.groovin.logmeow"
+
+                // Only sign/notarize when credentials are present (e.g. CI release),
+                // so local `packageDmg` still works without a certificate.
+                signing {
+                    sign.set(System.getenv("MACOS_SIGN") == "true")
+                    identity.set(System.getenv("MACOS_SIGN_IDENTITY"))
+                }
+                notarization {
+                    appleID.set(System.getenv("MACOS_NOTARY_APPLE_ID"))
+                    password.set(System.getenv("MACOS_NOTARY_PASSWORD"))
+                    teamID.set(System.getenv("MACOS_NOTARY_TEAM_ID"))
+                }
             }
             windows {
                 iconFile.set(project.file("src/main/resources/logmeow.ico"))

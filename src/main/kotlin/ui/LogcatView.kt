@@ -406,7 +406,7 @@ private fun RowScope.FullLogRowContent(
         maxLines = 1,
         minLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.width(180.dp)
+        modifier = Modifier.width(164.dp)
     )
 
     // Level

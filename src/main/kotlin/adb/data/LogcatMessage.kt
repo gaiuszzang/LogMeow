@@ -7,7 +7,5 @@ data class LogcatMessage(
     val tid: Int,
     val level: LogLevel,
     val tag: String,
-    val message: String,
-    val isSelected: Boolean = false,
-    val isBookmarked: Boolean = false
+    val message: String
 )

@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -46,6 +47,7 @@ import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -69,6 +71,12 @@ fun LogCatView(
 ) {
     val listState = rememberLazyListState()
     val filteredLogs = uiState.filteredLogs
+    val selectedIds = uiState.selectedIds
+    val bookmarkedIds = uiState.bookmarkedIds
+    // Read through State inside long-lived pointer/drag coroutines so they see the
+    // latest list without being restarted for every incoming log.
+    val currentFilteredLogs by rememberUpdatedState(filteredLogs)
+    val currentOnDragSelect by rememberUpdatedState(onDragSelect)
     val isCompact = uiState.displayMode == DisplayMode.Compact
     var isDragging by remember { mutableStateOf(false) }
     var dragMouseY by remember { mutableFloatStateOf(0f) }
@@ -77,8 +85,10 @@ fun LogCatView(
     var isFocused by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Auto-scroll to the bottom when a new log is added
-    LaunchedEffect(filteredLogs.size) {
+    // Auto-scroll to the bottom when a new log is added. Keyed on the last id, not the
+    // size: once maxLogCount is reached the head is trimmed as fast as logs arrive,
+    // so the size stays constant while the content keeps moving.
+    LaunchedEffect(filteredLogs.lastOrNull()?.id) {
         if (filteredLogs.isNotEmpty()) {
             listState.scrollToItem(filteredLogs.size - 1)
         }
@@ -106,18 +116,19 @@ fun LogCatView(
 
             if (scrollAmount != 0) {
                 val firstVisibleIndex = listState.firstVisibleItemIndex
-                val targetIndex = (firstVisibleIndex + scrollAmount).coerceIn(0, filteredLogs.size - 1)
+                val logs = currentFilteredLogs
+                val targetIndex = (firstVisibleIndex + scrollAmount).coerceIn(0, logs.size - 1)
                 listState.scrollToItem(targetIndex)
 
                 // Select the item at the edge
-                if (filteredLogs.isNotEmpty()) {
+                if (logs.isNotEmpty()) {
                     val selectIndex = if (scrollAmount < 0) {
                         listState.firstVisibleItemIndex
                     } else {
-                        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: (filteredLogs.size - 1)
+                        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: (logs.size - 1)
                     }
-                    if (selectIndex in filteredLogs.indices) {
-                        onDragSelect(filteredLogs[selectIndex].id)
+                    if (selectIndex in logs.indices) {
+                        currentOnDragSelect(logs[selectIndex].id)
                     }
                 }
             }
@@ -200,7 +211,7 @@ fun LogCatView(
                                 listState.animateScrollBy(-viewportHeight.toFloat())
                                 val firstVisible = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                                 if (firstVisible != null) {
-                                    val currentIndex = filteredLogs.indexOfFirst { it.isSelected }
+                                    val currentIndex = filteredLogs.indexOfFirst { it.id in selectedIds }
                                     val targetIndex = firstVisible.index
                                     if (currentIndex != -1 && targetIndex != currentIndex) {
                                         onKeyNavigate(targetIndex - currentIndex, isShift)
@@ -215,7 +226,7 @@ fun LogCatView(
                                 listState.animateScrollBy(viewportHeight.toFloat())
                                 val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()
                                 if (lastVisible != null) {
-                                    val currentIndex = filteredLogs.indexOfLast { it.isSelected }
+                                    val currentIndex = filteredLogs.indexOfLast { it.id in selectedIds }
                                     val targetIndex = lastVisible.index
                                     if (currentIndex != -1 && targetIndex != currentIndex) {
                                         onKeyNavigate(targetIndex - currentIndex, isShift)
@@ -238,8 +249,8 @@ fun LogCatView(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(end = 8.dp)
-                    .pointerInput(filteredLogs) {
-                        containerHeight = size.height.toFloat()
+                    .onSizeChanged { containerHeight = it.height.toFloat() }
+                    .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
@@ -260,8 +271,9 @@ fun LogCatView(
                                             for (itemInfo in layoutInfo.visibleItemsInfo) {
                                                 if (y >= itemInfo.offset && y < itemInfo.offset + itemInfo.size) {
                                                     val index = itemInfo.index
-                                                    if (index in filteredLogs.indices) {
-                                                        onDragSelect(filteredLogs[index].id)
+                                                    val logs = currentFilteredLogs
+                                                    if (index in logs.indices) {
+                                                        currentOnDragSelect(logs[index].id)
                                                     }
                                                     break
                                                 }
@@ -273,11 +285,16 @@ fun LogCatView(
                         }
                     }
             ) {
-                items(filteredLogs.size) { index ->
+                items(
+                    count = filteredLogs.size,
+                    key = { index -> filteredLogs[index].id }
+                ) { index ->
                     val log = filteredLogs[index]
                     LogRow(
                         modifier = Modifier.fillMaxWidth(),
                         log = log,
+                        isSelected = log.id in selectedIds,
+                        isBookmarked = log.id in bookmarkedIds,
                         filterTag = uiState.filterTag,
                         filterMessage = uiState.filterMessage,
                         isCompact = isCompact,
@@ -309,6 +326,8 @@ fun LogCatView(
 @Composable
 private fun LogRow(
     log: LogcatMessage,
+    isSelected: Boolean,
+    isBookmarked: Boolean,
     filterTag: String?,
     filterMessage: String?,
     isCompact: Boolean,
@@ -330,12 +349,12 @@ private fun LogRow(
     }
 
     val rowBackgroundColor = when {
-        log.isSelected && log.isBookmarked && isListFocused -> theme.selectedBookmarkFocused
-        log.isSelected && log.isBookmarked -> theme.selectedBookmarkUnfocused
-        log.isSelected && isListFocused -> theme.selectedFocused
-        log.isSelected -> theme.selectedUnfocused
-        log.isBookmarked && isHovered -> theme.bookmarkHoverBackground
-        log.isBookmarked -> theme.bookmarkBackground
+        isSelected && isBookmarked && isListFocused -> theme.selectedBookmarkFocused
+        isSelected && isBookmarked -> theme.selectedBookmarkUnfocused
+        isSelected && isListFocused -> theme.selectedFocused
+        isSelected -> theme.selectedUnfocused
+        isBookmarked && isHovered -> theme.bookmarkHoverBackground
+        isBookmarked -> theme.bookmarkBackground
         isHovered -> theme.textSelectionHoverBackground
         else -> theme.panelBackground
     }

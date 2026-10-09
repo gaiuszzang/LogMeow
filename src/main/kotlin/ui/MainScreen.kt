@@ -23,6 +23,9 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import vm.UiState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,10 +90,12 @@ fun MainScreen(
     val isNetworkInspectorVisible by viewModel.isNetworkInspectorVisible.collectAsState()
     val isSettingsVisible by viewModel.isSettingsVisible.collectAsState()
     val settings by viewModel.settingsFlow.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    // Kept as State and only read inside LogFilterBar / LogPanel / LogStatusBar, so an
+    // incoming log batch recomposes those sections instead of the whole screen.
+    val uiState = viewModel.uiState.collectAsState()
+    val appTheme = remember(settings.themeName) { themeByName(settings.themeName) }
 
     var deviceListExpanded by remember { mutableStateOf(false) }
-    var logLevelFilterExpanded by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
 
@@ -98,7 +103,7 @@ fun MainScreen(
         focusRequester.requestFocus()
     }
 
-    AppTheme(theme = themeByName(settings.themeName)) {
+    AppTheme(theme = appTheme) {
         val theme = LocalLogMeowTheme.current
         Column(
             modifier = Modifier
@@ -264,75 +269,7 @@ fun MainScreen(
             Spacer(Modifier.height(16.dp))
 
             // Filter Controls: LogLevel Filter + PID Filter + Tag Filter + Message Filter
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // LogLevel Filter Dropdown
-                Text("LogLevelFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
-                RowItemSpacer(8.dp)
-                Box {
-                    DropDownButton(
-                        modifier = Modifier.width(100.dp),
-                        text = "[ ${uiState.logLevelFilter?.name ?: "All"} ]",
-                        onClick = { logLevelFilterExpanded = !logLevelFilterExpanded }
-
-                    )
-                    DropdownMenu(
-                        expanded = logLevelFilterExpanded,
-                        onDismissRequest = { logLevelFilterExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            onClick = {
-                                viewModel.updateLogLevelFilter(null)
-                                logLevelFilterExpanded = false
-                            }
-                        ) {
-                            Text("All", fontSize = theme.fontSizeBody)
-                        }
-                        LogLevel.entries.forEach { level ->
-                            DropdownMenuItem(
-                                onClick = {
-                                    viewModel.updateLogLevelFilter(level)
-                                    logLevelFilterExpanded = false
-                                }
-                            ) {
-                                Text(level.name, fontSize = theme.fontSizeBody)
-                            }
-                        }
-                    }
-                }
-                RowItemSpacer(8.dp)
-                // PID Filter Text Field
-                Text("PIDFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
-                RowItemSpacer(8.dp)
-                SingleLineTextField(
-                    value = uiState.filterPid?.toString() ?: "",
-                    onValueChange = {
-                        val pid = it.toIntOrNull()
-                        viewModel.updatePidFilter(pid)
-                    },
-                    modifier = Modifier.width(70.dp)
-                )
-                RowItemSpacer(8.dp)
-                // Tag Filter Text Field
-                Text("TagFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
-                RowItemSpacer(8.dp)
-                SingleLineTextField(
-                    value = uiState.filterTag ?: "",
-                    onValueChange = { viewModel.updateTagFilter(it.ifBlank { null }) },
-                    modifier = Modifier.width(180.dp)
-                )
-                RowItemSpacer(8.dp)
-                // Message Filter Text Field
-                Text("MessageFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
-                RowItemSpacer(8.dp)
-                SingleLineTextField(
-                    value = uiState.filterMessage ?: "",
-                    onValueChange = { viewModel.updateMessageFilter(it.ifBlank { null }) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            LogFilterBar(uiState = uiState, viewModel = viewModel)
 
             Spacer(Modifier.height(16.dp))
 
@@ -343,84 +280,11 @@ fun MainScreen(
                     .fillMaxWidth()
                     .border(1.dp, theme.border, RoundedCornerShape(theme.cornerRadius))
             ) {
-                LogCatView(
-                    uiState = uiState,
-                    onLogClick = { id, isShift, isAlt ->
-                        when {
-                            isShift -> viewModel.selectRangeLog(id)
-                            isAlt -> viewModel.toggleSingleLogSelection(id)
-                            else -> viewModel.selectSingleLog(id)
-                        }
-                        focusRequester.requestFocus()
-                    },
-                    onLogDoubleClick = { id ->
-                        viewModel.toggleBookmarkForLog(id)
-                        focusRequester.requestFocus()
-                    },
-                    onDragSelect = { id ->
-                        viewModel.selectRangeLog(id)
-                    },
-                    onKeyNavigate = { direction, extendSelection ->
-                        viewModel.selectAdjacentLog(direction, extendSelection)
-                    },
-                    scrollToIndexFlow = viewModel.scrollToFilteredIndex
-                )
+                LogPanel(uiState = uiState, viewModel = viewModel, focusRequester = focusRequester)
             }
 
             // Status Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left side: Display Mode toggle button
-                val isCompactMode = uiState.displayMode == DisplayMode.Compact
-                Text(
-                    modifier = Modifier
-                        .clickable { viewModel.toggleDisplayMode() }
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    text = if (isCompactMode) "Show Compact Mode" else "Show All Mode",
-                    fontSize = theme.fontSizeBody,
-                    color = if (isCompactMode) theme.textPrimary else theme.textDim
-                )
-
-                // Right side: Bookmarks and LogSize
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (uiState.bookmarkCount > 0) {
-                        Text(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            text = "Bookmarks : ${uiState.bookmarkCount}",
-                            fontSize = theme.fontSizeBody,
-                            color = theme.textDim
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        IconButton(
-                            modifier = Modifier.size(18.dp),
-                            icon = ChevronLeftIcon,
-                            onClick = { viewModel.navigateToPreviousBookmark() }
-                        )
-                        Spacer(Modifier.width(2.dp))
-                        IconButton(
-                            modifier = Modifier.size(18.dp),
-                            icon = ChevronRightIcon,
-                            onClick = { viewModel.navigateToNextBookmark() }
-                        )
-                        Spacer(Modifier.width(16.dp))
-                    }
-                    Text(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        text = "LogSize : ${uiState.allLogCount}",
-                        fontSize = theme.fontSizeBody,
-                        color = theme.textDim
-                    )
-                }
-            }
+            LogStatusBar(uiState = uiState, viewModel = viewModel)
         }
 
         // DeepLink Popup
@@ -432,7 +296,7 @@ fun MainScreen(
                 )
                 DeepLinkPopupScreen(
                     viewModel = deepLinkViewModel,
-                    theme = themeByName(settings.themeName),
+                    theme = appTheme,
                     focusRequest = viewModel.deepLinkFocusRequest,
                     onDismiss = { viewModel.hideDeepLinkPopup() }
                 )
@@ -448,7 +312,7 @@ fun MainScreen(
                 )
                 NetworkInspectorScreen(
                     viewModel = networkViewModel,
-                    theme = themeByName(settings.themeName),
+                    theme = appTheme,
                     focusRequest = viewModel.networkInspectorFocusRequest,
                     onDismiss = { viewModel.hideNetworkInspector() }
                 )
@@ -458,12 +322,193 @@ fun MainScreen(
         // Settings Popup
         if (isSettingsVisible) {
             SettingsPopupScreen(
-                theme = themeByName(settings.themeName),
+                theme = appTheme,
                 currentThemeName = settings.themeName,
                 currentMaxLogCount = settings.maxLogCount,
+                currentMaxTrafficCount = settings.maxTrafficCount,
                 onThemeChange = { viewModel.updateTheme(it) },
                 onMaxLogCountChange = { viewModel.updateMaxLogCount(it) },
+                onMaxTrafficCountChange = { viewModel.updateMaxTrafficCount(it) },
                 onDismiss = { viewModel.hideSettings() }
+            )
+        }
+    }
+}
+
+private data class LogFilterValues(
+    val level: LogLevel?,
+    val pid: Int?,
+    val tag: String?,
+    val message: String?
+)
+
+@Composable
+private fun LogFilterBar(uiState: State<UiState>, viewModel: MainViewModel) {
+    val theme = LocalLogMeowTheme.current
+    // Only recomposes when a filter value changes, not on every incoming log.
+    val filters by remember(uiState) {
+        derivedStateOf {
+            val state = uiState.value
+            LogFilterValues(state.logLevelFilter, state.filterPid, state.filterTag, state.filterMessage)
+        }
+    }
+    var logLevelFilterExpanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // LogLevel Filter Dropdown
+        Text("LogLevelFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+        RowItemSpacer(8.dp)
+        Box {
+            DropDownButton(
+                modifier = Modifier.width(100.dp),
+                text = "[ ${filters.level?.name ?: "All"} ]",
+                onClick = { logLevelFilterExpanded = !logLevelFilterExpanded }
+
+            )
+            DropdownMenu(
+                expanded = logLevelFilterExpanded,
+                onDismissRequest = { logLevelFilterExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    onClick = {
+                        viewModel.updateLogLevelFilter(null)
+                        logLevelFilterExpanded = false
+                    }
+                ) {
+                    Text("All", fontSize = theme.fontSizeBody)
+                }
+                LogLevel.entries.forEach { level ->
+                    DropdownMenuItem(
+                        onClick = {
+                            viewModel.updateLogLevelFilter(level)
+                            logLevelFilterExpanded = false
+                        }
+                    ) {
+                        Text(level.name, fontSize = theme.fontSizeBody)
+                    }
+                }
+            }
+        }
+        RowItemSpacer(8.dp)
+        // PID Filter Text Field
+        Text("PIDFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+        RowItemSpacer(8.dp)
+        SingleLineTextField(
+            value = filters.pid?.toString() ?: "",
+            onValueChange = {
+                val pid = it.toIntOrNull()
+                viewModel.updatePidFilter(pid)
+            },
+            modifier = Modifier.width(70.dp)
+        )
+        RowItemSpacer(8.dp)
+        // Tag Filter Text Field
+        Text("TagFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+        RowItemSpacer(8.dp)
+        SingleLineTextField(
+            value = filters.tag ?: "",
+            onValueChange = { viewModel.updateTagFilter(it.ifBlank { null }) },
+            modifier = Modifier.width(180.dp)
+        )
+        RowItemSpacer(8.dp)
+        // Message Filter Text Field
+        Text("MessageFilter", fontWeight = FontWeight.Medium, fontSize = theme.fontSizeBody)
+        RowItemSpacer(8.dp)
+        SingleLineTextField(
+            value = filters.message ?: "",
+            onValueChange = { viewModel.updateMessageFilter(it.ifBlank { null }) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun LogPanel(
+    uiState: State<UiState>,
+    viewModel: MainViewModel,
+    focusRequester: FocusRequester
+) {
+    LogCatView(
+        uiState = uiState.value,
+        onLogClick = { id, isShift, isAlt ->
+            when {
+                isShift -> viewModel.selectRangeLog(id)
+                isAlt -> viewModel.toggleSingleLogSelection(id)
+                else -> viewModel.selectSingleLog(id)
+            }
+            focusRequester.requestFocus()
+        },
+        onLogDoubleClick = { id ->
+            viewModel.toggleBookmarkForLog(id)
+            focusRequester.requestFocus()
+        },
+        onDragSelect = { id ->
+            viewModel.selectRangeLog(id)
+        },
+        onKeyNavigate = { direction, extendSelection ->
+            viewModel.selectAdjacentLog(direction, extendSelection)
+        },
+        scrollToIndexFlow = viewModel.scrollToFilteredIndex
+    )
+}
+
+@Composable
+private fun LogStatusBar(uiState: State<UiState>, viewModel: MainViewModel) {
+    val theme = LocalLogMeowTheme.current
+    val state = uiState.value
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left side: Display Mode toggle button
+        val isCompactMode = state.displayMode == DisplayMode.Compact
+        Text(
+            modifier = Modifier
+                .clickable { viewModel.toggleDisplayMode() }
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            text = if (isCompactMode) "Show Compact Mode" else "Show All Mode",
+            fontSize = theme.fontSizeBody,
+            color = if (isCompactMode) theme.textPrimary else theme.textDim
+        )
+
+        // Right side: Bookmarks and LogSize
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (state.bookmarkCount > 0) {
+                Text(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    text = "Bookmarks : ${state.bookmarkCount}",
+                    fontSize = theme.fontSizeBody,
+                    color = theme.textDim
+                )
+                Spacer(Modifier.width(4.dp))
+                IconButton(
+                    modifier = Modifier.size(18.dp),
+                    icon = ChevronLeftIcon,
+                    onClick = { viewModel.navigateToPreviousBookmark() }
+                )
+                Spacer(Modifier.width(2.dp))
+                IconButton(
+                    modifier = Modifier.size(18.dp),
+                    icon = ChevronRightIcon,
+                    onClick = { viewModel.navigateToNextBookmark() }
+                )
+                Spacer(Modifier.width(16.dp))
+            }
+            Text(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                text = "LogSize : ${state.allLogCount}",
+                fontSize = theme.fontSizeBody,
+                color = theme.textDim
             )
         }
     }

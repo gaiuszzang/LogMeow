@@ -27,12 +27,25 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
+
+    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 kotlin {
     jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    // Benchmarks are opt-in: ./gradlew :test -Dbenchmark=true --tests 'bench.*'
+    systemProperty("benchmark", System.getProperty("benchmark") ?: "false")
+    systemProperty("benchmark.sizes", System.getProperty("benchmark.sizes") ?: "10000,50000")
+    testLogging {
+        showStandardStreams = true
     }
 }
 

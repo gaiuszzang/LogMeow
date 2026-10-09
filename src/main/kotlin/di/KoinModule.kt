@@ -13,5 +13,5 @@ val appModule = module {
     single<MainRepository> { MainRepositoryImpl() }
     single { MainViewModel(get(), get()) }
     factory { (deviceId: String) -> DeepLinkPopupViewModel(get(), deviceId, get()) }
-    factory { (deviceId: String) -> NetworkInspectorViewModel(get(), deviceId) }
+    factory { (deviceId: String) -> NetworkInspectorViewModel(get(), deviceId, get()) }
 }

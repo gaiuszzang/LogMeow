@@ -6,20 +6,26 @@ import adb.data.LogLevel
 import adb.data.LogcatMessage
 import repository.MainRepository
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.PersistentSet
+import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -35,9 +41,9 @@ data class UiState(
     val filterPid: Int? = null,
     val filterTag: String? = null,
     val filterMessage: String? = null,
-    val focusLogIndex: Int? = null,
-    val shiftCursorFilteredIndex: Int? = null,
     val filteredLogs: ImmutableList<LogcatMessage> = persistentListOf(),
+    val selectedIds: ImmutableSet<Long> = persistentHashSetOf(),
+    val bookmarkedIds: ImmutableSet<Long> = persistentHashSetOf(),
     val allLogCount: Int = 0,
     val bookmarkCount: Int = 0,
     val bookmarkedIndicesInFilteredLogs: ImmutableList<Int> = persistentListOf(),
@@ -87,7 +93,19 @@ class MainViewModel(
     val settingsFlow = repository.getSettingsFlow()
 
     // Logcat messages state (private - only managed internally)
-    private var allLogs = mutableListOf<LogcatMessage>()
+    private var allLogs = LogBuffer()
+    private var filteredLogs = LogBuffer()
+    private var logFilter = LogFilter()
+
+    // Selection and bookmarks are tracked by log id, outside of LogcatMessage, so
+    // changing them never copies or re-filters the log buffers.
+    private var selectedIds: PersistentSet<Long> = persistentHashSetOf()
+    private var bookmarkedIds: PersistentSet<Long> = persistentHashSetOf()
+    private var bookmarkedIndices: ImmutableList<Int> = persistentListOf()
+
+    // Anchor for range selection and the moving end of a shift+arrow selection.
+    private var focusLogId: Long? = null
+    private var shiftCursorLogId: Long? = null
 
     // UI state
     private val _uiState = MutableStateFlow(UiState())
@@ -145,7 +163,11 @@ class MainViewModel(
     }
 
     fun clearLogs() {
-        allLogs.clear()
+        allLogs = LogBuffer()
+        selectedIds = persistentHashSetOf()
+        bookmarkedIds = persistentHashSetOf()
+        focusLogId = null
+        shiftCursorLogId = null
         updateFilteredLogs()
     }
 
@@ -242,6 +264,11 @@ class MainViewModel(
         repository.updateSettings(current.copy(maxLogCount = maxLogCount))
     }
 
+    fun updateMaxTrafficCount(maxTrafficCount: Int) {
+        val current = repository.getSettingsFlow().value
+        repository.updateSettings(current.copy(maxTrafficCount = maxTrafficCount))
+    }
+
     private fun startScreenRecording() {
         val deviceId = _selectedDevice.value?.id ?: return
 
@@ -315,162 +342,192 @@ class MainViewModel(
         }
     }
 
-    private fun isLogMatchingFilter(log: LogcatMessage): Boolean {
-        val levelMatch = _uiState.value.logLevelFilter == null || log.level == _uiState.value.logLevelFilter
-        val pidMatch = _uiState.value.filterPid == null || log.pid == _uiState.value.filterPid
-        val tagMatch = _uiState.value.filterTag.isNullOrBlank() ||
-            log.tag.contains(_uiState.value.filterTag!!, ignoreCase = true)
-        val messageMatch = _uiState.value.filterMessage.isNullOrBlank() ||
-            log.message.contains(_uiState.value.filterMessage!!, ignoreCase = true)
-        return levelMatch && pidMatch && tagMatch && messageMatch
-    }
-
-    private fun appendNewLog(logMessage: LogcatMessage) {
-        // add log into All Logs
-        allLogs.add(logMessage)
+    private fun appendNewLogs(batch: List<LogcatMessage>) {
+        val filteredSizeBefore = filteredLogs.size
+        for (log in batch) {
+            allLogs.add(log)
+            if (logFilter.matches(log)) filteredLogs.add(log)
+        }
+        var filteredChanged = filteredLogs.size != filteredSizeBefore
 
         // trim oldest logs if exceeding maxLogCount
+        var selectionChanged = false
+        var bookmarksChanged = false
         val maxLogCount = repository.getSettingsFlow().value.maxLogCount
-        if (maxLogCount > 0 && allLogs.size > maxLogCount) {
-            val removeCount = allLogs.size - maxLogCount
-            allLogs.subList(0, removeCount).clear()
-            updateFilteredLogs()
-            return
+        if (maxLogCount > 0) {
+            while (allLogs.size > maxLogCount) {
+                val removedId = allLogs.removeFirst().id
+                if (!filteredLogs.isEmpty() && filteredLogs.first().id == removedId) {
+                    filteredLogs.removeFirst()
+                    filteredChanged = true
+                    // bookmark indices are positions in the filtered list
+                    if (bookmarkedIds.isNotEmpty()) bookmarksChanged = true
+                }
+                if (removedId in selectedIds) {
+                    selectedIds = selectedIds.remove(removedId)
+                    selectionChanged = true
+                }
+                if (removedId in bookmarkedIds) {
+                    bookmarkedIds = bookmarkedIds.remove(removedId)
+                    bookmarksChanged = true
+                }
+            }
         }
+        if (bookmarksChanged) bookmarkedIndices = computeBookmarkedIndices()
 
-        // add log to ui as filtered condition
         val currentState = _uiState.value
-        if (isLogMatchingFilter(logMessage)) {
-            _uiState.value = currentState.copy(
-                filteredLogs = (currentState.filteredLogs + logMessage).toImmutableList(),
-                allLogCount = allLogs.size
-            )
-        } else {
-            _uiState.value = currentState.copy(allLogCount = allLogs.size)
-        }
-    }
-
-    private fun updateFilteredLogs() {
-        val filtered = allLogs.filter { isLogMatchingFilter(it) }.toImmutableList()
-
-        // Calculate bookmarked indices in filtered logs
-        val bookmarkedIndices = filtered.mapIndexedNotNull { index, log ->
-            if (log.isBookmarked) index else null
-        }.toImmutableList()
-
-        val bookmarkCount = allLogs.count { it.isBookmarked }
-
-        _uiState.value = _uiState.value.copy(
-            filteredLogs = filtered,
+        _uiState.value = currentState.copy(
+            filteredLogs = if (filteredChanged) filteredLogs.snapshot() else currentState.filteredLogs,
+            selectedIds = if (selectionChanged) selectedIds else currentState.selectedIds,
             allLogCount = allLogs.size,
-            bookmarkCount = bookmarkCount,
+            bookmarkCount = bookmarkedIds.size,
             bookmarkedIndicesInFilteredLogs = bookmarkedIndices
         )
     }
 
-    fun selectSingleLog(id: Long) {
-        val index = allLogs.indexOfFirst { it.id == id }
-        if (index != -1) {
-            // Deselect all and select only the clicked one
-            for (i in allLogs.indices) {
-                allLogs[i] = allLogs[i].copy(isSelected = i == index)
-            }
-            // Update focus index and reset shift cursor
-            _uiState.value = _uiState.value.copy(focusLogIndex = index, shiftCursorFilteredIndex = null)
-            updateFilteredLogs()
+    /** Full re-filter. Only needed when the filter itself or the whole buffer changes. */
+    private fun updateFilteredLogs() {
+        val state = _uiState.value
+        logFilter = LogFilter(
+            level = state.logLevelFilter,
+            pid = state.filterPid,
+            tag = state.filterTag?.takeIf { it.isNotBlank() },
+            message = state.filterMessage?.takeIf { it.isNotBlank() }
+        )
+        val filtered = LogBuffer(allLogs.size)
+        for (i in 0 until allLogs.size) {
+            val log = allLogs[i]
+            if (logFilter.matches(log)) filtered.add(log)
         }
+        filteredLogs = filtered
+        bookmarkedIndices = computeBookmarkedIndices()
+        publishLogState()
+    }
+
+    private fun publishLogState() {
+        _uiState.value = _uiState.value.copy(
+            filteredLogs = filteredLogs.snapshot(),
+            selectedIds = selectedIds,
+            bookmarkedIds = bookmarkedIds,
+            allLogCount = allLogs.size,
+            bookmarkCount = bookmarkedIds.size,
+            bookmarkedIndicesInFilteredLogs = bookmarkedIndices
+        )
+    }
+
+    private fun publishSelection() {
+        _uiState.value = _uiState.value.copy(selectedIds = selectedIds)
+    }
+
+    private fun publishBookmarks() {
+        bookmarkedIndices = computeBookmarkedIndices()
+        _uiState.value = _uiState.value.copy(
+            bookmarkedIds = bookmarkedIds,
+            bookmarkCount = bookmarkedIds.size,
+            bookmarkedIndicesInFilteredLogs = bookmarkedIndices
+        )
+    }
+
+    private fun computeBookmarkedIndices(): ImmutableList<Int> {
+        if (bookmarkedIds.isEmpty()) return persistentListOf()
+        return bookmarkedIds
+            .mapNotNull { id -> filteredLogs.indexOfId(id).takeIf { it >= 0 } }
+            .sorted()
+            .toImmutableList()
+    }
+
+    private fun containsLog(id: Long): Boolean = allLogs.indexOfId(id) >= 0
+
+    /** Ids of the filtered logs between [fromIndex] and [toIndex], inclusive. */
+    private fun filteredIdsBetween(fromIndex: Int, toIndex: Int): PersistentSet<Long> {
+        val builder = persistentHashSetOf<Long>().builder()
+        for (i in fromIndex..toIndex) builder.add(filteredLogs[i].id)
+        return builder.build()
+    }
+
+    /** Filtered-list index of the first (or last) selected log, or -1. */
+    private fun selectedFilteredIndex(last: Boolean): Int {
+        var result = -1
+        for (id in selectedIds) {
+            val index = filteredLogs.indexOfId(id)
+            if (index < 0) continue
+            if (result == -1 || (if (last) index > result else index < result)) result = index
+        }
+        return result
+    }
+
+    fun selectSingleLog(id: Long) {
+        if (!containsLog(id)) return
+        // Deselect all and select only the clicked one
+        selectedIds = persistentHashSetOf(id)
+        // Update focus and reset shift cursor
+        focusLogId = id
+        shiftCursorLogId = null
+        publishSelection()
     }
 
     fun selectRangeLog(id: Long) {
-        val index = allLogs.indexOfFirst { it.id == id }
-        if (index == -1) return
+        if (!containsLog(id)) return
 
-        val focusIndex = _uiState.value.focusLogIndex
-
-        // Check if focusLogIndex is valid
-        if (focusIndex != null && focusIndex in allLogs.indices) {
-            // Select range between focusLogIndex and index
-            val start = minOf(focusIndex, index)
-            val end = maxOf(focusIndex, index)
-
-            // Deselect all first
-            for (i in allLogs.indices) {
-                allLogs[i] = allLogs[i].copy(isSelected = false)
-            }
-
-            // Select range, but only logs that match the current filter
-            for (i in start..end) {
-                if (isLogMatchingFilter(allLogs[i])) {
-                    allLogs[i] = allLogs[i].copy(isSelected = true)
-                }
-            }
-
-            _uiState.value = _uiState.value.copy(shiftCursorFilteredIndex = null)
-            updateFilteredLogs()
-        } else {
-            // If focusLogIndex is not valid, just select the clicked item
+        val anchorId = focusLogId
+        if (anchorId == null || !containsLog(anchorId)) {
+            // If the anchor is not valid, just select the clicked item
             selectSingleLog(id)
+            return
         }
+
+        // Select the range between the anchor and id, but only logs that match the current filter
+        val from = filteredLogs.lowerBound(minOf(anchorId, id))
+        val to = filteredLogs.lowerBound(maxOf(anchorId, id) + 1) - 1
+        selectedIds = if (from <= to) filteredIdsBetween(from, to) else persistentHashSetOf()
+        shiftCursorLogId = null
+        publishSelection()
     }
 
     fun toggleSingleLogSelection(id: Long) {
-        val index = allLogs.indexOfFirst { it.id == id }
-        if (index != -1) {
-            allLogs[index] = allLogs[index].copy(isSelected = !allLogs[index].isSelected)
-            // Update focus index and reset shift cursor
-            _uiState.value = _uiState.value.copy(focusLogIndex = index, shiftCursorFilteredIndex = null)
-            updateFilteredLogs()
-        }
+        if (!containsLog(id)) return
+        selectedIds = if (id in selectedIds) selectedIds.remove(id) else selectedIds.add(id)
+        // Update focus and reset shift cursor
+        focusLogId = id
+        shiftCursorLogId = null
+        publishSelection()
     }
 
     /**
      * Move selection to the adjacent log in filtered list.
      * @param direction -1 for up, 1 for down
-     * @param extendSelection if true, select range from anchor (focusLogIndex) to moving cursor
+     * @param extendSelection if true, select range from anchor (focusLogId) to moving cursor
      * @return the target filtered index for scrolling, or null if no move
      */
     fun selectAdjacentLog(direction: Int, extendSelection: Boolean = false): Int? {
-        val filteredLogs = _uiState.value.filteredLogs
         if (filteredLogs.isEmpty()) return null
+        val lastIndex = filteredLogs.size - 1
 
         if (extendSelection) {
             // Range selection from anchor point
-            val anchorAllIndex = _uiState.value.focusLogIndex ?: return null
-            val anchorFilteredIndex = filteredLogs.indexOfFirst { it.id == allLogs.getOrNull(anchorAllIndex)?.id }
+            val anchorId = focusLogId ?: return null
+            val anchorFilteredIndex = filteredLogs.indexOfId(anchorId)
             if (anchorFilteredIndex == -1) return null
 
             // Determine current cursor position, or start from anchor
-            val currentCursor = _uiState.value.shiftCursorFilteredIndex ?: anchorFilteredIndex
-            val newCursor = (currentCursor + direction).coerceIn(0, filteredLogs.size - 1)
+            val currentCursor = shiftCursorLogId
+                ?.let { filteredLogs.indexOfId(it) }
+                ?.takeIf { it >= 0 }
+                ?: anchorFilteredIndex
+            val newCursor = (currentCursor.toLong() + direction).coerceIn(0L, lastIndex.toLong()).toInt()
             if (newCursor == currentCursor) return null
 
-            // Select range between anchor and new cursor in allLogs
-            val anchorAll = anchorAllIndex
-            val cursorAllIndex = allLogs.indexOfFirst { it.id == filteredLogs[newCursor].id }
-            if (cursorAllIndex == -1) return null
-
-            val start = minOf(anchorAll, cursorAllIndex)
-            val end = maxOf(anchorAll, cursorAllIndex)
-
-            for (i in allLogs.indices) {
-                val shouldSelect = i in start..end && isLogMatchingFilter(allLogs[i])
-                allLogs[i] = allLogs[i].copy(isSelected = shouldSelect)
-            }
-
-            _uiState.value = _uiState.value.copy(shiftCursorFilteredIndex = newCursor)
-            updateFilteredLogs()
+            selectedIds = filteredIdsBetween(minOf(anchorFilteredIndex, newCursor), maxOf(anchorFilteredIndex, newCursor))
+            shiftCursorLogId = filteredLogs[newCursor].id
+            publishSelection()
             return newCursor
         } else {
             // Normal single selection
-            val currentFilteredIndex = if (direction < 0) {
-                filteredLogs.indexOfFirst { it.isSelected }
-            } else {
-                filteredLogs.indexOfLast { it.isSelected }
-            }
+            val currentFilteredIndex = selectedFilteredIndex(last = direction > 0)
             val targetIndex = if (currentFilteredIndex == -1) {
                 0
             } else {
-                (currentFilteredIndex + direction).coerceIn(0, filteredLogs.size - 1)
+                (currentFilteredIndex.toLong() + direction).coerceIn(0L, lastIndex.toLong()).toInt()
             }
             if (targetIndex == currentFilteredIndex) return null
 
@@ -481,8 +538,9 @@ class MainViewModel(
 
     fun getSelectedLogsAsText(): String {
         val isCompact = _uiState.value.displayMode == DisplayMode.Compact
-        return allLogs
-            .filter { it.isSelected }
+        return selectedIds
+            .sorted()
+            .mapNotNull { id -> allLogs.indexOfId(id).takeIf { it >= 0 }?.let { allLogs[it] } }
             .joinToString("\n") { log ->
                 if (isCompact) {
                     log.message
@@ -493,32 +551,25 @@ class MainViewModel(
     }
 
     fun toggleBookmarkForSelectedLogs() {
-        val selectedIndices = allLogs.indices.filter { allLogs[it].isSelected }
-        if (selectedIndices.isEmpty()) return
+        if (selectedIds.isEmpty()) return
 
         // If any selected log is not bookmarked, bookmark all. Otherwise, unbookmark all.
-        val shouldBookmark = selectedIndices.any { !allLogs[it].isBookmarked }
-
-        for (index in selectedIndices) {
-            allLogs[index] = allLogs[index].copy(isBookmarked = shouldBookmark)
-        }
-        updateFilteredLogs()
+        val shouldBookmark = selectedIds.any { it !in bookmarkedIds }
+        bookmarkedIds = if (shouldBookmark) bookmarkedIds.addAll(selectedIds) else bookmarkedIds.removeAll(selectedIds)
+        publishBookmarks()
     }
 
     fun toggleBookmarkForLog(id: Long) {
-        val index = allLogs.indexOfFirst { it.id == id }
-        if (index != -1) {
-            allLogs[index] = allLogs[index].copy(isBookmarked = !allLogs[index].isBookmarked)
-            updateFilteredLogs()
-        }
+        if (!containsLog(id)) return
+        bookmarkedIds = if (id in bookmarkedIds) bookmarkedIds.remove(id) else bookmarkedIds.add(id)
+        publishBookmarks()
     }
 
     fun navigateToPreviousBookmark() {
         val bookmarkedIndices = _uiState.value.bookmarkedIndicesInFilteredLogs
         if (bookmarkedIndices.isEmpty()) return
-        val filteredLogs = _uiState.value.filteredLogs
 
-        val currentIndex = filteredLogs.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+        val currentIndex = selectedFilteredIndex(last = false).takeIf { it >= 0 }
         val target = if (currentIndex != null) {
             bookmarkedIndices.lastOrNull { it < currentIndex } ?: bookmarkedIndices.last()
         } else {
@@ -532,9 +583,8 @@ class MainViewModel(
     fun navigateToNextBookmark() {
         val bookmarkedIndices = _uiState.value.bookmarkedIndicesInFilteredLogs
         if (bookmarkedIndices.isEmpty()) return
-        val filteredLogs = _uiState.value.filteredLogs
 
-        val currentIndex = filteredLogs.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+        val currentIndex = selectedFilteredIndex(last = false).takeIf { it >= 0 }
         val target = if (currentIndex != null) {
             bookmarkedIndices.firstOrNull { it > currentIndex } ?: bookmarkedIndices.first()
         } else {
@@ -560,6 +610,7 @@ class MainViewModel(
         return null
     }
 
+    @OptIn(FlowPreview::class)
     private fun startLogging() {
         val deviceId = _selectedDevice.value?.id ?: return
 
@@ -568,12 +619,20 @@ class MainViewModel(
             // Always clear the device's log buffer before starting a new collection
             adbService.clearLogcat(deviceId)
 
-            adbService.getLogcatFlow(deviceId)
-                .onEach { logMessage ->
-                    // Append new log to the existing list
-                    appendNewLog(logMessage)
+            // Drain whatever has queued up since the last pass and apply it as one
+            // batch, so a burst of logs costs one state update instead of one per line.
+            val channel = adbService.getLogcatFlow(deviceId)
+                .buffer(Channel.UNLIMITED)
+                .produceIn(this)
+            val batch = ArrayList<LogcatMessage>(MAX_LOG_BATCH_SIZE)
+            for (logMessage in channel) {
+                batch.add(logMessage)
+                while (batch.size < MAX_LOG_BATCH_SIZE) {
+                    batch.add(channel.tryReceive().getOrNull() ?: break)
                 }
-                .collect() // Use collect to keep it within this job
+                appendNewLogs(batch)
+                batch.clear()
+            }
         }
     }
 
@@ -603,4 +662,21 @@ class MainViewModel(
     fun onCleared() {
         viewModelScope.cancel()
     }
+
+    companion object {
+        private const val MAX_LOG_BATCH_SIZE = 5_000
+    }
+}
+
+private data class LogFilter(
+    val level: LogLevel? = null,
+    val pid: Int? = null,
+    val tag: String? = null,
+    val message: String? = null
+) {
+    fun matches(log: LogcatMessage): Boolean =
+        (level == null || log.level == level) &&
+            (pid == null || log.pid == pid) &&
+            (tag == null || log.tag.contains(tag, ignoreCase = true)) &&
+            (message == null || log.message.contains(message, ignoreCase = true))
 }

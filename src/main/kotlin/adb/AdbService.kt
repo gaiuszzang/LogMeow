@@ -3,11 +3,12 @@ package adb
 import adb.data.AdbDevice
 import adb.data.AdbDeviceState
 import adb.data.LogcatMessage
-import adb.data.LogLevel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -311,14 +312,15 @@ open class AdbService {
         }
     }
 
-    fun getLogcatFlow(deviceId: String): Flow<LogcatMessage> = callbackFlow<LogcatMessage> {
+    open fun getLogcatFlow(deviceId: String): Flow<LogcatMessage> = callbackFlow<LogcatMessage> {
         val process = ProcessBuilder(ADB_COMMAND, "-s", deviceId, "logcat", "-v", "threadtime").start()
         val job = launch(Dispatchers.IO) {
             try {
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                 reader.useLines { lines ->
                     lines.forEach { line ->
-                        parseLogcatLine(line)?.let {
+                        LogcatParser.parse(line, nextLogId)?.let {
+                            nextLogId++
                             trySend(it)
                         }
                     }
@@ -334,24 +336,8 @@ open class AdbService {
             process.destroyForcibly()
             process.waitFor(5, TimeUnit.SECONDS)
         }
-    }.flowOn(Dispatchers.IO)
-
-
-    private val logcatRegex = Regex(
-        "(\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\s+(\\d+)\\s+(\\d+)\\s+([VDIWEFS])\\s+(.*?):\\s+(.*)"
-    )
-
-    private fun parseLogcatLine(line: String): LogcatMessage? {
-        val match = logcatRegex.matchEntire(line) ?: return null
-        val (timestamp, pid, tid, levelChar, tag, message) = match.destructured
-        return LogcatMessage(
-            id = nextLogId++,
-            timestamp = timestamp,
-            pid = pid.toIntOrNull() ?: 0,
-            tid = tid.toIntOrNull() ?: 0,
-            level = LogLevel.fromChar(levelChar.first()),
-            tag = tag.trim(),
-            message = message
-        )
     }
+        // The default 64-slot channel made trySend drop lines silently during bursts.
+        .buffer(Channel.UNLIMITED)
+        .flowOn(Dispatchers.IO)
 }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import network.LibraryConnectionService
+import repository.MainRepository
 import io.groovin.logmeow.interceptor.MockApiSettingDto
 import io.groovin.logmeow.interceptor.MockSupportType
 import network.data.NetworkTrafficEntry
@@ -39,10 +40,14 @@ data class NetworkInspectorUiState(
 
 class NetworkInspectorViewModel(
     adbService: AdbService,
-    private val deviceId: String
+    private val deviceId: String,
+    repository: MainRepository
 ) {
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val service = LibraryConnectionService(adbService)
+    private val service = LibraryConnectionService(
+        adbService = adbService,
+        maxTrafficCount = { repository.getSettingsFlow().value.maxTrafficCount }
+    )
 
     private val _uiState = MutableStateFlow(NetworkInspectorUiState())
     val uiState = _uiState.asStateFlow()

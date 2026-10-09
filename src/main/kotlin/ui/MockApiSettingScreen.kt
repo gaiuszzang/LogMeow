@@ -285,7 +285,8 @@ fun MockApiSettingScreen(
             position = WindowPosition.Aligned(Alignment.Center)
         )
     ) {
-        AppTheme {
+        // Re-apply the parent window's theme; AppTheme's default is IslandsDarkTheme.
+        AppTheme(theme = LocalLogMeowTheme.current) {
             val theme = LocalLogMeowTheme.current
             Surface(
                 modifier = Modifier.fillMaxSize(),

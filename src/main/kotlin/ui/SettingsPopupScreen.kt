@@ -38,8 +38,10 @@ fun SettingsPopupScreen(
     theme: LogMeowTheme,
     currentThemeName: String,
     currentMaxLogCount: Int,
+    currentMaxTrafficCount: Int,
     onThemeChange: (String) -> Unit,
     onMaxLogCountChange: (Int) -> Unit,
+    onMaxTrafficCountChange: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     Window(
@@ -48,7 +50,7 @@ fun SettingsPopupScreen(
         resizable = false,
         state = rememberWindowState(
             width = 450.dp,
-            height = 240.dp,
+            height = 280.dp,
             position = WindowPosition.Aligned(Alignment.Center)
         )
     ) {
@@ -121,6 +123,32 @@ fun SettingsPopupScreen(
                                 if (newValue.all { it.isDigit() }) {
                                     maxLogCountText = newValue
                                     newValue.toIntOrNull()?.let { onMaxLogCountChange(it) }
+                                }
+                            },
+                            modifier = Modifier.width(180.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Max Traffic Count (Network Inspector, per app)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Max Traffic Count",
+                            fontSize = theme.fontSizeBody,
+                            color = theme.textPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        var maxTrafficCountText by remember { mutableStateOf(currentMaxTrafficCount.toString()) }
+                        SingleLineTextField(
+                            value = maxTrafficCountText,
+                            onValueChange = { newValue ->
+                                if (newValue.all { it.isDigit() }) {
+                                    maxTrafficCountText = newValue
+                                    newValue.toIntOrNull()?.let { onMaxTrafficCountChange(it) }
                                 }
                             },
                             modifier = Modifier.width(180.dp)

@@ -1,6 +1,9 @@
 package network
 
 import adb.AdbService
+import kotlinx.collections.immutable.PersistentList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +41,8 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 
 class LibraryConnectionService(
-    private val adbService: AdbService
+    private val adbService: AdbService,
+    private val maxTrafficCount: () -> Int
 ) {
     companion object {
         const val DEFAULT_PORT = 10087
@@ -47,7 +51,8 @@ class LibraryConnectionService(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Per-client data
-    private val _clientTraffic = MutableStateFlow<Map<String, List<NetworkTrafficEntry>>>(emptyMap())
+    // PersistentList so appending an entry does not copy the whole list
+    private val _clientTraffic = MutableStateFlow<Map<String, PersistentList<NetworkTrafficEntry>>>(emptyMap())
     val clientTraffic = _clientTraffic.asStateFlow()
 
     private val _clientMockSettings = MutableStateFlow<Map<String, List<MockApiSettingDto>>>(emptyMap())
@@ -240,8 +245,8 @@ class LibraryConnectionService(
                             scope.launch {
                                 mutex.withLock {
                                     _clientTraffic.update { map ->
-                                        val current = map[appId].orEmpty()
-                                        map + (appId to current + entry)
+                                        val current = map[appId] ?: persistentListOf()
+                                        map + (appId to appendTraffic(current, entry))
                                     }
                                 }
                             }
@@ -274,6 +279,17 @@ class LibraryConnectionService(
                 try { socket.close() } catch (_: Exception) {}
             }
         }
+    }
+
+    /** Appends [entry], dropping the oldest entries beyond [maxTrafficCount] (<= 0 means unlimited). */
+    private fun appendTraffic(
+        current: PersistentList<NetworkTrafficEntry>,
+        entry: NetworkTrafficEntry
+    ): PersistentList<NetworkTrafficEntry> {
+        val appended = current.add(entry)
+        val max = maxTrafficCount()
+        if (max <= 0 || appended.size <= max) return appended
+        return appended.subList(appended.size - max, appended.size).toPersistentList()
     }
 
     private fun parseHandshake(jsonStr: String): String? = try {

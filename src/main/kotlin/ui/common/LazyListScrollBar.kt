@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,33 +65,19 @@ fun BoxScope.LazyListScrollBar(
         label = "ScrollBarAlpha"
     )
 
-    val layoutInfo = state.layoutInfo
-    val visibleItems = layoutInfo.visibleItemsInfo
-
-    if (layoutInfo.totalItemsCount == 0 || visibleItems.isEmpty()) return
+    // Only this flag is read during composition. Thumb geometry is read in the draw
+    // phase below, so scrolling just redraws the bar instead of recomposing it.
+    val isEmpty by remember(state) {
+        derivedStateOf {
+            val layoutInfo = state.layoutInfo
+            layoutInfo.totalItemsCount == 0 || layoutInfo.visibleItemsInfo.isEmpty()
+        }
+    }
+    if (isEmpty) return
 
     with(LocalDensity.current) {
-        val visibleHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat()
         val minLengthPx = minLength.toPx()
         val thicknessPx = thickness.toPx()
-
-        // Better average: sum of visible sizes / visible count
-        val averageItemSize = visibleItems.sumOf { it.size }.toFloat() / visibleItems.size
-        val totalItemsCount = layoutInfo.totalItemsCount
-        val totalContentHeightPx = averageItemSize * totalItemsCount
-
-        // Thumb height proportional to visible fraction
-        val scrollbarHeightPx = (visibleHeightPx * (visibleHeightPx / totalContentHeightPx))
-            .coerceIn(minLengthPx..visibleHeightPx)
-        val variableZone = (visibleHeightPx - scrollbarHeightPx).coerceAtLeast(1f) // avoid /0
-
-        // Estimate how many pixels we've scrolled from top
-        val scrolledPx = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
-        val totalScrollableRange = (totalContentHeightPx - visibleHeightPx).coerceAtLeast(1f)
-
-        // normalized progress and thumb offset
-        val scrollProgress = (scrolledPx / totalScrollableRange).coerceIn(0f, 1f)
-        val scrollOffsetPx = scrollProgress * variableZone
 
         val isVertical = direction == Direction.Vertical
         val modifier = if (isVertical) {
@@ -210,8 +197,9 @@ fun BoxScope.LazyListScrollBar(
                 LocalLogMeowTheme.current.cornerRadiusSmall.toPx()
             }
             Canvas(modifier = Modifier.matchParentSize()) {
+                val thumb = state.thumbGeometry(minLengthPx) ?: return@Canvas
                 val markerThickness = 2.dp.toPx()
-                val effectiveTotalItems = if (totalItemCount > 0) totalItemCount else layoutInfo.totalItemsCount
+                val effectiveTotalItems = if (totalItemCount > 0) totalItemCount else state.layoutInfo.totalItemsCount
 
                 if (isVertical) {
                     // Draw background track
@@ -225,8 +213,8 @@ fun BoxScope.LazyListScrollBar(
 
                     // Draw scrollbar thumb
                     drawRoundRect(
-                        topLeft = Offset(0f, scrollOffsetPx),
-                        size = Size(thicknessPx, scrollbarHeightPx),
+                        topLeft = Offset(0f, thumb.offsetPx),
+                        size = Size(thicknessPx, thumb.lengthPx),
                         cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = color,
                         alpha = alpha
@@ -234,8 +222,7 @@ fun BoxScope.LazyListScrollBar(
 
                     // Draw bookmark markers (on top of thumb, semi-transparent)
                     if (effectiveTotalItems > 0) {
-                        bookmarkedIndices.forEach { index ->
-                            val markerY = (index.toFloat() / effectiveTotalItems) * size.height
+                        forEachMarkerPosition(bookmarkedIndices, effectiveTotalItems, size.height, markerThickness) { markerY ->
                             drawRect(
                                 color = bookmarkMarkerColor,
                                 topLeft = Offset(0f, markerY),
@@ -256,8 +243,8 @@ fun BoxScope.LazyListScrollBar(
 
                     // Draw scrollbar thumb
                     drawRoundRect(
-                        topLeft = Offset(scrollOffsetPx, 0f),
-                        size = Size(scrollbarHeightPx, thicknessPx),
+                        topLeft = Offset(thumb.offsetPx, 0f),
+                        size = Size(thumb.lengthPx, thicknessPx),
                         cornerRadius = CornerRadius(scrollbarCornerRadius),
                         color = color,
                         alpha = alpha
@@ -265,8 +252,7 @@ fun BoxScope.LazyListScrollBar(
 
                     // Draw bookmark markers (on top of thumb, semi-transparent)
                     if (effectiveTotalItems > 0) {
-                        bookmarkedIndices.forEach { index ->
-                            val markerX = (index.toFloat() / effectiveTotalItems) * size.width
+                        forEachMarkerPosition(bookmarkedIndices, effectiveTotalItems, size.width, markerThickness) { markerX ->
                             drawRect(
                                 color = bookmarkMarkerColor,
                                 topLeft = Offset(markerX, 0f),
@@ -278,5 +264,54 @@ fun BoxScope.LazyListScrollBar(
                 }
             }
         }
+    }
+}
+
+private class ThumbGeometry(val offsetPx: Float, val lengthPx: Float)
+
+/** Thumb position and length along the scroll axis, or null when there is nothing to show. */
+private fun LazyListState.thumbGeometry(minLengthPx: Float): ThumbGeometry? {
+    val info = layoutInfo
+    val visibleItems = info.visibleItemsInfo
+    if (info.totalItemsCount == 0 || visibleItems.isEmpty()) return null
+
+    val visibleHeightPx = (info.viewportEndOffset - info.viewportStartOffset).toFloat()
+
+    // Better average: sum of visible sizes / visible count
+    val averageItemSize = visibleItems.sumOf { it.size }.toFloat() / visibleItems.size
+    val totalContentHeightPx = averageItemSize * info.totalItemsCount
+
+    // Thumb height proportional to visible fraction
+    val scrollbarHeightPx = (visibleHeightPx * (visibleHeightPx / totalContentHeightPx))
+        .coerceIn(minLengthPx..visibleHeightPx)
+    val variableZone = (visibleHeightPx - scrollbarHeightPx).coerceAtLeast(1f) // avoid /0
+
+    // Estimate how many pixels we've scrolled from top
+    val scrolledPx = firstVisibleItemIndex * averageItemSize + firstVisibleItemScrollOffset
+    val totalScrollableRange = (totalContentHeightPx - visibleHeightPx).coerceAtLeast(1f)
+
+    // normalized progress and thumb offset
+    val scrollProgress = (scrolledPx / totalScrollableRange).coerceIn(0f, 1f)
+    return ThumbGeometry(offsetPx = scrollProgress * variableZone, lengthPx = scrollbarHeightPx)
+}
+
+/**
+ * Calls [draw] with the track position of each marker, skipping markers that would
+ * overlap the previous one. Thousands of bookmarks collapse to at most one marker
+ * per [markerThickness] of track.
+ */
+private inline fun forEachMarkerPosition(
+    indices: List<Int>,
+    totalItems: Int,
+    trackLength: Float,
+    markerThickness: Float,
+    draw: (Float) -> Unit
+) {
+    var lastPosition = Float.NEGATIVE_INFINITY
+    for (index in indices) {
+        val position = (index.toFloat() / totalItems) * trackLength
+        if (position - lastPosition < markerThickness) continue
+        draw(position)
+        lastPosition = position
     }
 }

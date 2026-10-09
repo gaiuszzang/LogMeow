@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".docs/logmeow-icon.png" width="128" alt="LogMeow icon">
+</p>
+
 # LogMeow
 
 Android logcat viewer for Desktop (macOS, Windows, Linux)
